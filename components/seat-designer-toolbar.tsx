@@ -8,6 +8,9 @@ import {
   Rows3,
   Maximize2,
   Grid3X3,
+  Hand,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,11 +31,16 @@ interface SeatDesignerToolbarProps {
   onSnapStepChange: (v: number) => void;
   selectedCount: number;
   totalSeats: number;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   className?: string;
 }
 
 const tools: { tool: DesignerTool; label: string; icon: typeof MousePointer2 }[] = [
   { tool: "select", label: "Select", icon: MousePointer2 },
+  { tool: "pan", label: "Pan", icon: Hand },
   { tool: "place", label: "Place", icon: Plus },
   { tool: "row", label: "Add Row", icon: Rows3 },
   { tool: "tier-paint", label: "Paint Tier", icon: Paintbrush2 },
@@ -49,6 +57,10 @@ export function SeatDesignerToolbar({
   onSnapStepChange,
   selectedCount,
   totalSeats,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   className,
 }: SeatDesignerToolbarProps) {
   function zoomBy(factor: number) {
@@ -88,6 +100,34 @@ export function SeatDesignerToolbar({
             <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
+      </div>
+
+      <div className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+
+      {/* Undo / Redo */}
+      <div className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       <div className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden />

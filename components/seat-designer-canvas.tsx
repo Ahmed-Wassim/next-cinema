@@ -215,6 +215,12 @@ export function SeatDesignerCanvas({
 
       const startClient = { x: e.clientX, y: e.clientY };
 
+      if (toolRef.current === "pan") {
+        startPanning(startClient);
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        return;
+      }
+
       // Set up long-press timer for canvas clicks → pan after 350ms hold
       let longPressTimer: ReturnType<typeof setTimeout> | null = null;
       if (!hit && toolRef.current === "select") {
@@ -733,7 +739,7 @@ export function SeatDesignerCanvas({
 
       <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2">
         <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-medium capitalize text-white/80 backdrop-blur-md">
-          {activeTool === "tier-paint" ? "🎨 Tier Paint" : activeTool === "place" ? "➕ Place" : activeTool === "row" ? "📐 Add Row" : "🔍 Select"}
+          {activeTool === "tier-paint" ? "🎨 Tier Paint" : activeTool === "place" ? "➕ Place" : activeTool === "row" ? "📐 Add Row" : activeTool === "pan" ? "🖐️ Pan" : "🔍 Select"}
         </div>
       </div>
 

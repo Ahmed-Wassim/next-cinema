@@ -31,8 +31,66 @@ export default function SeatDesignerPage() {
   const [sectionId, setSectionId] = useState(0);
   const [tierId, setTierId] = useState(0);
 
-  /* ---- Canvas state ---- */
+  /* ---- Canvas state & History ---- */
   const [seats, setSeats] = useState<LayoutSeat[]>([]);
+  const [past, setPast] = useState<LayoutSeat[][]>([]);
+  const [future, setFuture] = useState<LayoutSeat[][]>([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const handleSeatsChange = useCallback((nextSeats: LayoutSeat[] | ((prev: LayoutSeat[]) => LayoutSeat[])) => {
+    setSeats((prev) => {
+      const next = typeof nextSeats === "function" ? nextSeats(prev) : nextSeats;
+      if (next !== prev) {
+         setPast((p) => [...p, prev]);
+         setFuture([]);
+         setHasSubmitted(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return;
+    setPast((p) => p.slice(0, p.length - 1));
+    setHasSubmitted(false);
+    setSeats((prev) => {
+      setFuture((f) => [prev, ...f]);
+      return past[past.length - 1]!;
+    });
+  }, [past]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return;
+    setFuture((f) => f.slice(1));
+    setHasSubmitted(false);
+    setSeats((prev) => {
+      setPast((p) => [...p, prev]);
+      return future[0]!;
+    });
+  }, [future]);
+
+  // Global Undo/Redo shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [viewport, setViewport] = useState<CanvasViewport>({
     panX: -2,
@@ -43,8 +101,8 @@ export default function SeatDesignerPage() {
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [snapStep, setSnapStep] = useState(1);
   const [seatDefaults, setSeatDefaults] = useState<SeatDefaults>({
-    width: 4,
-    height: 4,
+    width: 15,
+    height: 15,
     shape: "rect",
     rotation: 0,
     is_active: true,
@@ -159,6 +217,7 @@ export default function SeatDesignerPage() {
       const payload = seats.map(stripLayoutKey);
       await bulkInsertSeats(payload);
       setMessage(`Created ${payload.length} seats via bulk API.`);
+      setHasSubmitted(true);
     } catch (e: unknown) {
       setError(
         e && typeof e === "object" && "message" in e
@@ -198,11 +257,11 @@ export default function SeatDesignerPage() {
           <Button
             type="button"
             className="gap-1.5"
-            disabled={submitting || seats.length === 0 || !hallId || !sectionId || !tierId}
+            disabled={submitting || seats.length === 0 || !hallId || !sectionId || !tierId || hasSubmitted}
             onClick={() => void handleSubmit()}
           >
             <Send className="h-3.5 w-3.5" />
-            {submitting ? "Submitting…" : `Insert ${seats.length} seats`}
+            {submitting ? "Submitting…" : hasSubmitted ? "Saved!" : `Insert ${seats.length} seats`}
           </Button>
         </div>
       </div>
@@ -219,6 +278,10 @@ export default function SeatDesignerPage() {
         onSnapStepChange={setSnapStep}
         selectedCount={selectedKeys.size}
         totalSeats={seats.length}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
       />
 
       {/* Canvas + Sidebar */}
@@ -226,7 +289,7 @@ export default function SeatDesignerPage() {
         <div className="min-w-0 flex-1">
           <SeatDesignerCanvas
             seats={seats}
-            onSeatsChange={setSeats}
+            onSeatsChange={handleSeatsChange}
             selectedKeys={selectedKeys}
             onSelectionChange={setSelectedKeys}
             tierColorById={tierColorById}
@@ -259,7 +322,7 @@ export default function SeatDesignerPage() {
           sectionsForHall={sectionsForHall}
           tiersForHall={tiersForHall}
           seats={seats}
-          onSeatsChange={setSeats}
+          onSeatsChange={handleSeatsChange}
           selectedKeys={selectedKeys}
           onSelectionChange={setSelectedKeys}
           activeTool={activeTool}

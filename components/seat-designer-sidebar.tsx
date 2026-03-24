@@ -9,6 +9,10 @@ import {
   RotateCw,
   Rows3,
   Trash2,
+  Link2,
+  Link2Off,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -200,10 +204,44 @@ export function SeatDesignerSidebar({
     rowLabel: "A",
     startX: 10,
     startY: 10,
-    gapX: 1,   // gap between seats horizontally
-    gapY: 1,   // gap between rows vertically
+    gapX: 4,   // gap between seats horizontally
+    gapY: 4,   // gap between rows vertically
     priceTierId: null as number | null,
   });
+
+  /* ---- Aspect Ratio Lock ---- */
+  const [lockSquare, setLockSquare] = useState(true);
+
+  /* ---- Distribute Spacing ---- */
+  const [distGapX, setDistGapX] = useState(4);
+  const [distGapY, setDistGapY] = useState(4);
+
+  function distributeSelected(axis: "x" | "y") {
+    if (selectedKeys.size < 2) return;
+    const sel = seats.filter((s) => selectedKeys.has(s.layoutKey));
+    
+    if (axis === "x") {
+      sel.sort((a, b) => a.pos_x - b.pos_x);
+      let currentX = sel[0].pos_x;
+      const nextSeats = [...seats];
+      sel.forEach((s) => {
+        const idx = nextSeats.findIndex((x) => x.layoutKey === s.layoutKey);
+        nextSeats[idx] = { ...s, pos_x: currentX };
+        currentX += s.width + distGapX;
+      });
+      onSeatsChange(nextSeats);
+    } else {
+      sel.sort((a, b) => a.pos_y - b.pos_y);
+      let currentY = sel[0].pos_y;
+      const nextSeats = [...seats];
+      sel.forEach((s) => {
+        const idx = nextSeats.findIndex((x) => x.layoutKey === s.layoutKey);
+        nextSeats[idx] = { ...s, pos_y: currentY };
+        currentY += s.height + distGapY;
+      });
+      onSeatsChange(nextSeats);
+    }
+  }
 
   function generateRow() {
     const count = Math.max(1, Math.floor(rowGen.seatCount));
@@ -339,7 +377,27 @@ export function SeatDesignerSidebar({
 
       {/* ---- Seat appearance ---- */}
       <Section title="Seat defaults" defaultOpen={false}>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 relative">
+          {/* Square aspect ratio lock button */}
+          <button
+            type="button"
+            className={cn(
+              "absolute left-[calc(50%-12px)] top-[26px] z-10 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-colors",
+              lockSquare 
+                ? "bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900" 
+                : "bg-white border-zinc-200 text-zinc-400 hover:text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700"
+            )}
+            onClick={() => {
+              setLockSquare(!lockSquare);
+              if (!lockSquare) {
+                // When locking, immediately make it square
+                onSeatDefaultsChange(d => ({ ...d, height: d.width }));
+              }
+            }}
+            title={lockSquare ? "Unlock aspect ratio" : "Lock square"}
+          >
+            {lockSquare ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
+          </button>
           <div className="space-y-1">
             <Label className="text-xs">Width</Label>
             <Input
@@ -348,7 +406,10 @@ export function SeatDesignerSidebar({
               className="h-7 text-xs"
               value={seatDefaults.width}
               onChange={(e) =>
-                onSeatDefaultsChange((d) => ({ ...d, width: Math.max(1, Number(e.target.value) || 1) }))
+                onSeatDefaultsChange((d) => {
+                  const val = Math.max(1, Number(e.target.value) || 1);
+                  return { ...d, width: val, height: lockSquare ? val : d.height };
+                })
               }
             />
           </div>
@@ -359,8 +420,12 @@ export function SeatDesignerSidebar({
               min={1}
               className="h-7 text-xs"
               value={seatDefaults.height}
+              disabled={lockSquare}
               onChange={(e) =>
-                onSeatDefaultsChange((d) => ({ ...d, height: Math.max(1, Number(e.target.value) || 1) }))
+                onSeatDefaultsChange((d) => {
+                  const val = Math.max(1, Number(e.target.value) || 1);
+                  return { ...d, height: val, width: lockSquare ? val : d.width };
+                })
               }
             />
           </div>
@@ -690,7 +755,7 @@ export function SeatDesignerSidebar({
                   onChange={(e) => {
                     const w = Math.max(1, Number(e.target.value) || 1);
                     onSeatsChange(
-                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, width: w } : s)),
+                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, width: w, height: lockSquare ? w : s.height } : s)),
                     );
                   }}
                 />
@@ -703,10 +768,11 @@ export function SeatDesignerSidebar({
                   step={0.5}
                   className="h-7 text-xs"
                   value={selectedSeats[0]?.height ?? seatDefaults.height}
+                  disabled={lockSquare}
                   onChange={(e) => {
                     const h = Math.max(1, Number(e.target.value) || 1);
                     onSeatsChange(
-                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, height: h } : s)),
+                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, height: h, width: lockSquare ? h : s.width } : s)),
                     );
                   }}
                 />
@@ -731,6 +797,45 @@ export function SeatDesignerSidebar({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Distribute Space selected seats */}
+        {selectedCount > 1 && (
+          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <Label className="text-xs font-medium">Distribute spacing</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
+                <span className="text-[10px] text-zinc-500 font-medium">X Gap</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  className="w-full bg-transparent text-xs outline-none"
+                  value={distGapX}
+                  onChange={(e) => setDistGapX(Math.max(0, Number(e.target.value) || 0))}
+                />
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => distributeSelected("x")}>
+                <AlignHorizontalSpaceAround className="h-3 w-3" /> Set X
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
+                <span className="text-[10px] text-zinc-500 font-medium">Y Gap</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  className="w-full bg-transparent text-xs outline-none"
+                  value={distGapY}
+                  onChange={(e) => setDistGapY(Math.max(0, Number(e.target.value) || 0))}
+                />
+              </div>
+              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => distributeSelected("y")}>
+                <AlignVerticalSpaceAround className="h-3 w-3" /> Set Y
+              </Button>
             </div>
           </div>
         )}

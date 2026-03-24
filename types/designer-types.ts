@@ -1,7 +1,7 @@
 import type { LayoutSeat } from "@/types/seat-layout";
 
 /** Active tool in the designer canvas. */
-export type DesignerTool = "select" | "place" | "row" | "tier-paint";
+export type DesignerTool = "select" | "pan" | "place" | "row" | "tier-paint";
 
 /** Pan/zoom state for the SVG canvas. */
 export interface CanvasViewport {
