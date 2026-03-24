@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LayoutGrid, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SeatViewerCanvas } from "@/components/seat-viewer-canvas";
 import { SeatsSubnav } from "@/components/seats-subnav";
 import { extractPaginated } from "@/lib/extract-paginated";
 import { getHallSections } from "@/services/hallSectionService";
@@ -65,6 +68,9 @@ export default function SeatsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [viewMode, setViewMode] = useState<"table" | "map">("table");
+  const [filterSectionId, setFilterSectionId] = useState<number>(0);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [createValues, setCreateValues] = useState<SeatFormValues>({
     hall_section_id: 0,
@@ -86,17 +92,37 @@ export default function SeatsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getSeats({ page, per_page: perPage });
-      const { data, meta: m } = extractPaginated<Seat>(res);
-      setRows(data);
-      setMeta(m);
+      if (viewMode === "map") {
+        let current = 1;
+        let all: Seat[] = [];
+        let fetchedMeta: PaginationMeta | null = null;
+        while (true) {
+          const res = await getSeats({
+            page: current,
+            per_page: 500, // Safe bulk chunk to avoid massive payloads
+            hall_section_id: filterSectionId || undefined,
+          });
+          const { data, meta: m } = extractPaginated<Seat>(res);
+          all = all.concat(data);
+          fetchedMeta = m;
+          if (m.current_page >= m.last_page) break;
+          current++;
+        }
+        setRows(all);
+        setMeta(fetchedMeta || emptyMeta);
+      } else {
+        const res = await getSeats({ page, per_page: perPage, hall_section_id: filterSectionId || undefined });
+        const { data, meta: m } = extractPaginated<Seat>(res);
+        setRows(data);
+        setMeta(m);
+      }
     } catch {
       setError("Failed to load seats.");
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [page, perPage]);
+  }, [page, perPage, viewMode, filterSectionId]);
 
   useEffect(() => {
     void (async () => {
@@ -123,6 +149,12 @@ export default function SeatsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (viewMode === "map" && !filterSectionId && sections.length > 0) {
+      setFilterSectionId(sections[0]!.id);
+    }
+  }, [viewMode, filterSectionId, sections]);
 
   function buildSeatPayload(v: SeatFormValues): Omit<Seat, "id"> {
     const label =
@@ -216,7 +248,7 @@ export default function SeatsPage() {
             <strong className="font-medium text-zinc-800 dark:text-zinc-200">
               Hall layout
             </strong>{" "}
-            in the tabs above for many seats at once.
+            for full designs. Use the Map view below to verify data.
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -307,8 +339,79 @@ export default function SeatsPage() {
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       ) : null}
 
+      {/* Toolbar / Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2">
+        <div className="flex items-center gap-2">
+          <Select
+            value={filterSectionId ? String(filterSectionId) : "all"}
+            onValueChange={(v) => {
+              setFilterSectionId(v === "all" ? 0 : Number(v));
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[200px] h-9 text-sm">
+              <SelectValue placeholder="All Sections" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sections</SelectItem>
+              {sections.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex bg-white dark:bg-zinc-950 rounded-md border border-zinc-200 dark:border-zinc-800 p-0.5 shadow-sm">
+          <button
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-sm transition-colors",
+              viewMode === "table" 
+                ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50" 
+                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            )}
+          >
+            <List className="w-3.5 h-3.5" /> Table
+          </button>
+          <button
+            onClick={() => setViewMode("map")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-sm transition-colors",
+              viewMode === "map" 
+                ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50" 
+                : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" /> Map View
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <p className="text-sm text-zinc-500">Loading…</p>
+      ) : viewMode === "map" ? (
+        filterSectionId === 0 ? (
+          <div className="py-20 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+            <LayoutGrid className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">Please select a Section to view its seat map.</p>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-20 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
+            <LayoutGrid className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">No seats found in this section.</p>
+          </div>
+        ) : (
+          <SeatViewerCanvas 
+            seats={rows} 
+            className="h-[600px]"
+            onSeatClick={(seat) => {
+              setEditing(seat);
+              setEditOpen(true);
+            }} 
+          />
+        )
       ) : (
         <>
           <Table>

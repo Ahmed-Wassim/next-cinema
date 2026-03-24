@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Send } from "lucide-react";
 
 import { SeatDesignerCanvas } from "@/components/seat-designer-canvas";
@@ -10,11 +10,14 @@ import { SeatsSubnav } from "@/components/seats-subnav";
 import { Button } from "@/components/ui/button";
 import { consumeLayoutDraft } from "@/lib/layout-draft";
 import { extractPaginated } from "@/lib/extract-paginated";
+import { generateBulkSeatsFromCustomRows } from "@/lib/generate-bulk-seats";
 import { getHallSections } from "@/services/hallSectionService";
 import { getHalls } from "@/services/hallService";
 import { getPriceTiers } from "@/services/priceTierService";
-import { bulkInsertSeats } from "@/services/seatService";
+import { bulkInsertSeats, getSeats, updateSeat, deleteSeat } from "@/services/seatService";
 import type { Hall } from "@/types/hall";
+import type { Seat } from "@/types/seat";
+import type { BulkSeatItem } from "@/types/seat-bulk";
 import type { HallSection } from "@/types/hall-section";
 import type { PriceTier } from "@/types/price-tier";
 import type { LayoutSeat } from "@/types/seat-layout";
@@ -36,6 +39,12 @@ export default function SeatDesignerPage() {
   const [past, setPast] = useState<LayoutSeat[][]>([]);
   const [future, setFuture] = useState<LayoutSeat[][]>([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const seatsRef = useRef<LayoutSeat[]>(seats);
+  useEffect(() => {
+    seatsRef.current = seats;
+  }, [seats]);
+
 
   const handleSeatsChange = useCallback((nextSeats: LayoutSeat[] | ((prev: LayoutSeat[]) => LayoutSeat[])) => {
     setSeats((prev) => {
@@ -97,6 +106,47 @@ export default function SeatDesignerPage() {
     panY: -2,
     zoom: 1.5,
   });
+
+  const fitToView = useCallback((overrideSeats?: LayoutSeat[]) => {
+    const targetSeats = overrideSeats || seatsRef.current;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const s of targetSeats) {
+      const px = Number(s.pos_x) || 0;
+      const py = Number(s.pos_y) || 0;
+      const w = Number(s.width) || 15;
+      const h = Number(s.height) || 15;
+      if (px < minX) minX = px;
+      if (py < minY) minY = py;
+      if (px + w > maxX) maxX = px + w;
+      if (py + h > maxY) maxY = py + h;
+    }
+    if (minX === Infinity) {
+      setViewport({ panX: -20, panY: -20, zoom: 1.5 });
+      return;
+    }
+    const padding = 60;
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    
+    // Estimate canvas size (subtracting sidebar width)
+    const viewW = typeof window !== "undefined" ? window.innerWidth - 300 : 800;
+    const viewH = typeof window !== "undefined" ? window.innerHeight - 150 : 500;
+    
+    const scaleX = (viewW - padding * 2) / (contentW || 1);
+    const scaleY = (viewH - padding * 2) / (contentH || 1);
+    const newZoom = Math.min(scaleX, scaleY, 4);
+    
+    const scaledW = contentW * newZoom;
+    const scaledH = contentH * newZoom;
+    const offsetX = (viewW - scaledW) / 2;
+    const offsetY = (viewH - scaledH) / 2;
+    
+    setViewport({
+      panX: minX - offsetX / newZoom,
+      panY: minY - offsetY / newZoom,
+      zoom: newZoom,
+    });
+  }, [setViewport]);
   const [activeTool, setActiveTool] = useState<DesignerTool>("select");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [snapStep, setSnapStep] = useState(1);
@@ -115,7 +165,8 @@ export default function SeatDesignerPage() {
   const [nextRowLabel, setNextRowLabel] = useState("A");
   const [nextSeatNumber, setNextSeatNumber] = useState(1);
 
-  /* ---- Submit state ---- */
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,9 +196,22 @@ export default function SeatDesignerPage() {
     setHallId(draft.hallId);
     setSectionId(draft.sectionId);
     setTierId(draft.tierId);
-    setSeats(withLayoutKeys(draft.seats));
+    const layoutSts = withLayoutKeys(draft.seats);
+    setSeats(layoutSts);
+    setDraftLoaded(true);
     setMessage("Loaded layout draft from the seat builder.");
-  }, []);
+    setTimeout(() => fitToView(layoutSts), 50);
+  }, [fitToView]);
+
+  /* ---- Load Existing Seats from Database ---- */
+  // The user explicitly requested to revert this feature to keep the designer strictly as a blank slate builder.
+  // Instead of syncing existing layouts across edits, the builder works as a "new layout" factory.
+  useEffect(() => {
+    // Reverted implementation: No automatic database pull on sectionId change.
+    if (draftLoaded) {
+      setDraftLoaded(false);
+    }
+  }, [sectionId, draftLoaded]);
 
   /* ---- Derived: sections & tiers for selected hall ---- */
   const sectionsForHall = useMemo(
@@ -229,6 +293,41 @@ export default function SeatDesignerPage() {
     }
   }, [hallId, sectionId, tierId, seats]);
 
+  /* ---- Example Layout ---- */
+  function loadExampleLayout() {
+    if (!hallId || !sectionId || !tierId) {
+      setError("Select hall, section, and tier first.");
+      return;
+    }
+    setError(null);
+    const draftRows = [
+      { start_pos_x: 100, start_pos_y: 100, step_x: 19, seat_count: 12, row: "A", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 100, start_pos_y: 119, step_x: 19, seat_count: 14, row: "B", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 100, start_pos_y: 138, step_x: 19, seat_count: 16, row: "C", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 100, start_pos_y: 157, step_x: 19, seat_count: 18, row: "D", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 100, start_pos_y: 176, step_x: 19, seat_count: 18, row: "E", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 81, start_pos_y: 215, step_x: 19, seat_count: 20, row: "F", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 81, start_pos_y: 234, step_x: 19, seat_count: 20, row: "G", mirror: false, price_tier_id: tierId },
+      { start_pos_x: 81, start_pos_y: 253, step_x: 19, seat_count: 20, row: "H", mirror: false, price_tier_id: tierId },
+    ];
+    const generated = generateBulkSeatsFromCustomRows({
+      hall_id: hallId,
+      section_id: sectionId,
+      default_price_tier_id: tierId,
+      rows: draftRows,
+      seat_number_start: 1,
+      width: 15,
+      height: 15,
+      shape: "rect",
+      rotation: 0,
+      is_active: true,
+    });
+    const layoutSts = withLayoutKeys(generated);
+    handleSeatsChange(layoutSts);
+    setMessage("Loaded example layout.");
+    setTimeout(() => fitToView(layoutSts), 50);
+  }
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 px-4 pb-4">
       <SeatsSubnav />
@@ -257,11 +356,19 @@ export default function SeatDesignerPage() {
           <Button
             type="button"
             className="gap-1.5"
-            disabled={submitting || seats.length === 0 || !hallId || !sectionId || !tierId || hasSubmitted}
+            disabled={submitting || !hallId || !sectionId || !tierId || hasSubmitted}
             onClick={() => void handleSubmit()}
           >
             <Send className="h-3.5 w-3.5" />
-            {submitting ? "Submitting…" : hasSubmitted ? "Saved!" : `Insert ${seats.length} seats`}
+            {submitting ? "Syncing…" : hasSubmitted ? "Saved!" : "Sync current layout"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="text-zinc-600 dark:text-zinc-400"
+            onClick={loadExampleLayout}
+          >
+            Load Example Template
           </Button>
         </div>
       </div>
@@ -282,6 +389,7 @@ export default function SeatDesignerPage() {
         onRedo={redo}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
+        onFitToView={() => fitToView()}
       />
 
       {/* Canvas + Sidebar */}

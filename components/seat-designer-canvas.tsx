@@ -154,16 +154,20 @@ export function SeatDesignerCanvas({
     return Math.round(v / snapRef.current.step) * snapRef.current.step;
   }, []);
 
-  /* ---- Content bounds ---- */
+  /* ---- Computed Bounds ---- */
   const bounds = useMemo(() => {
-    if (!seats.length) return { maxX: 120, maxY: 80 };
-    let mx = 0;
-    let my = 0;
+    if (seats.length === 0) return { minX: 100, minY: 100, maxX: 500, maxY: 400 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
     for (const s of seats) {
-      mx = Math.max(mx, s.pos_x + s.width);
-      my = Math.max(my, s.pos_y + s.height);
+      if (s.pos_x < minX) minX = s.pos_x;
+      if (s.pos_y < minY) minY = s.pos_y;
+      if (s.pos_x + s.width > maxX) maxX = s.pos_x + s.width;
+      if (s.pos_y + s.height > maxY) maxY = s.pos_y + s.height;
     }
-    return { maxX: Math.max(120, mx + 20), maxY: Math.max(80, my + 20) };
+    return { minX, minY, maxX, maxY };
   }, [seats]);
 
   /* ---- SVG grid pattern (using defs for performance) ---- */
@@ -314,7 +318,7 @@ export function SeatDesignerCanvas({
           seatsRef.current.map((s) => {
             const origin = g.origins.get(s.layoutKey);
             if (!origin) return s;
-            return { ...s, pos_x: Math.max(0, origin.x + dx), pos_y: Math.max(0, origin.y + dy) };
+            return { ...s, pos_x: origin.x + dx, pos_y: origin.y + dy };
           }),
         );
         return;
@@ -418,8 +422,8 @@ export function SeatDesignerCanvas({
             price_tier_id: defaultTierId,
             row: nextRowLabel,
             number: String(nextSeatNumber),
-            pos_x: Math.max(0, x),
-            pos_y: Math.max(0, y),
+            pos_x: x,
+            pos_y: y,
             rotation: seatDefaults.rotation,
             width: seatDefaults.width,
             height: seatDefaults.height,
@@ -519,8 +523,8 @@ export function SeatDesignerCanvas({
   }, [isPanning, isDragging, activeTool, hoveredKey]);
 
   /* ---- Render ---- */
-  const gw = bounds.maxX + 40;
-  const gh = bounds.maxY + 60;
+  const gw = bounds.maxX - bounds.minX + 40;
+  const gh = bounds.maxY - bounds.minY + 60;
 
   return (
     <div
@@ -581,30 +585,30 @@ export function SeatDesignerCanvas({
           style={{ willChange: "transform" }}
         >
           {/* Grid background */}
-          <rect x={-100} y={-100} width={gw + 200} height={gh + 200} fill={`url(#${gridMajorId})`} />
+          <rect x={bounds.minX - 100} y={bounds.minY - 100} width={gw + 200} height={gh + 200} fill={`url(#${gridMajorId})`} />
 
           {/* Screen indicator */}
           <line
-            x1={0}
-            y1={bounds.maxY + 8}
+            x1={bounds.minX}
+            y1={bounds.maxY + 15}
             x2={bounds.maxX}
-            y2={bounds.maxY + 8}
+            y2={bounds.maxY + 15}
             stroke="rgba(217,119,6,0.45)"
             strokeWidth={2}
             strokeDasharray="4 2.5"
             strokeLinecap="round"
           />
           <rect
-            x={bounds.maxX / 2 - 12}
-            y={bounds.maxY + 10}
+            x={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 12}
+            y={bounds.maxY + 17}
             width={24}
             height={5}
             rx={1.5}
             fill="rgba(217,119,6,0.08)"
           />
           <text
-            x={bounds.maxX / 2}
-            y={bounds.maxY + 14}
+            x={bounds.minX + (bounds.maxX - bounds.minX) / 2}
+            y={bounds.maxY + 21}
             textAnchor="middle"
             fontSize={3}
             fontWeight={700}

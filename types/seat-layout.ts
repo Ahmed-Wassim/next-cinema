@@ -1,9 +1,9 @@
 import type { BulkSeatItem } from "@/types/seat-bulk";
 
 /** Seat with a stable client id for list keys and drag tracking. */
-export type LayoutSeat = BulkSeatItem & { layoutKey: string };
+export type LayoutSeat = BulkSeatItem & { layoutKey: string; id?: number };
 
-export function stripLayoutKey(seat: LayoutSeat): BulkSeatItem {
+export function stripLayoutKey(seat: LayoutSeat): BulkSeatItem & { id?: number } {
   const { layoutKey: _k, ...rest } = seat;
   return rest;
 }

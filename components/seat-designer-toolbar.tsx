@@ -35,6 +35,7 @@ interface SeatDesignerToolbarProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  onFitToView?: () => void;
   className?: string;
 }
 
@@ -61,6 +62,7 @@ export function SeatDesignerToolbar({
   onRedo,
   canUndo,
   canRedo,
+  onFitToView,
   className,
 }: SeatDesignerToolbarProps) {
   function zoomBy(factor: number) {
@@ -70,8 +72,9 @@ export function SeatDesignerToolbar({
     }));
   }
 
-  function fitToView() {
-    onViewportChange({ panX: -5, panY: -5, zoom: 1 });
+  function handleFit() {
+    if (onFitToView) onFitToView();
+    else onViewportChange({ panX: -5, panY: -5, zoom: 1 });
   }
 
   return (
@@ -162,7 +165,7 @@ export function SeatDesignerToolbar({
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={fitToView}
+          onClick={handleFit}
           title="Fit to view"
         >
           <Maximize2 className="h-3.5 w-3.5" />
