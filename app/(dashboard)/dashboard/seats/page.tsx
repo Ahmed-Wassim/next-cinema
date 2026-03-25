@@ -35,6 +35,7 @@ import { SeatViewerCanvas } from "@/components/seat-viewer-canvas";
 import { SeatsSubnav } from "@/components/seats-subnav";
 import { extractPaginated } from "@/lib/extract-paginated";
 import { getHallSections } from "@/services/hallSectionService";
+import type { DesignerBounds } from "@/types/designer-types";
 import {
   createSeat,
   deleteSeat,
@@ -60,6 +61,10 @@ type SeatFormValues = {
 };
 
 export default function SeatsPage() {
+  const mapBounds: DesignerBounds = useMemo(
+    () => ({ x: 0, y: 0, width: 600, height: 400 }),
+    [],
+  );
   const [sections, setSections] = useState<HallSection[]>([]);
   const [rows, setRows] = useState<Seat[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(emptyMeta);
@@ -406,6 +411,8 @@ export default function SeatsPage() {
           <SeatViewerCanvas 
             seats={rows} 
             className="h-[600px]"
+            designerBounds={mapBounds}
+            alignSeatsToBounds
             onSeatClick={(seat) => {
               setEditing(seat);
               setEditOpen(true);

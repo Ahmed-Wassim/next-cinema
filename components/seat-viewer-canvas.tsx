@@ -1,18 +1,29 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Seat } from "@/types/seat";
+import type { DesignerBounds } from "@/types/designer-types";
 
 interface SeatViewerCanvasProps {
   seats: Seat[];
   onSeatClick?: (seat: Seat) => void;
+  /** Optional fixed working area; if set, view fits this box and draws it. */
+  designerBounds?: DesignerBounds;
+  /** If true, render seats bottom-centered within `designerBounds` (visual-only). */
+  alignSeatsToBounds?: boolean;
   className?: string;
 }
 
-export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCanvasProps) {
+export function SeatViewerCanvas({
+  seats,
+  onSeatClick,
+  designerBounds,
+  alignSeatsToBounds = false,
+  className,
+}: SeatViewerCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Viewport tracking (Pan / Zoom)
@@ -26,6 +37,14 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
 
   /* ---- Compute Bounds ---- */
   const bounds = useMemo(() => {
+    if (designerBounds) {
+      return {
+        minX: designerBounds.x,
+        minY: designerBounds.y,
+        maxX: designerBounds.x + designerBounds.width,
+        maxY: designerBounds.y + designerBounds.height,
+      };
+    }
     if (seats.length === 0) return { minX: 0, minY: 0, maxX: 500, maxY: 400 };
     let minX = Infinity;
     let minY = Infinity;
@@ -43,7 +62,44 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
       if (py + h > maxY) maxY = py + h;
     }
     return { minX, minY, maxX, maxY };
-  }, [seats]);
+  }, [seats, designerBounds]);
+
+  const seatRenderOffset = useMemo(() => {
+    if (!designerBounds || !alignSeatsToBounds || seats.length === 0) {
+      return { dx: 0, dy: 0 };
+    }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const s of seats) {
+      const px = Number(s.pos_x) || 0;
+      const py = Number(s.pos_y) || 0;
+      const w = Math.max(1, Number(s.width) || 15);
+      const h = Math.max(1, Number(s.height) || 15);
+      minX = Math.min(minX, px);
+      minY = Math.min(minY, py);
+      maxX = Math.max(maxX, px + w);
+      maxY = Math.max(maxY, py + h);
+    }
+    if (minX === Infinity) return { dx: 0, dy: 0 };
+
+    const boundsLeft = designerBounds.x;
+    const boundsRight = designerBounds.x + designerBounds.width;
+    const boundsBottom = designerBounds.y + designerBounds.height;
+
+    // Similar to designer: keep a little space above bottom edge.
+    const bottomInset = 24;
+
+    const targetCenterX = (boundsLeft + boundsRight) / 2;
+    const currentCenterX = (minX + maxX) / 2;
+    const dx = targetCenterX - currentCenterX;
+
+    const targetMaxY = boundsBottom - bottomInset;
+    const dy = targetMaxY - maxY;
+
+    return { dx, dy };
+  }, [designerBounds, alignSeatsToBounds, seats]);
 
   /* ---- Handlers ---- */
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
@@ -93,16 +149,18 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
     setZoom((z) => Math.min(6, Math.max(0.15, z * factor)));
   };
 
-  const fitToView = () => {
+  const fitToView = useCallback(() => {
     const svg = svgRef.current;
-    if (!svg || seats.length === 0 || bounds.minX === Infinity) {
+    if (!svg || bounds.minX === Infinity) {
       setPanX(-20);
       setPanY(-20);
       setZoom(1);
       return;
     }
 
-    const padding = 40;
+    const paddingX = 50;
+    const topPad = 30;
+    const bottomPad = 90; // space for SCREEN indicator
     const contentW = bounds.maxX - bounds.minX;
     const contentH = bounds.maxY - bounds.minY;
     
@@ -110,32 +168,31 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
     const viewW = rect.width || 800;
     const viewH = rect.height || 500;
     
-    // Add space for screen line indicator at the bottom
-    const scaleX = (viewW - padding * 2) / (contentW || 1);
-    const scaleY = (viewH - padding * 2 - 40) / (contentH || 1);
-    const newZoom = Math.min(scaleX, scaleY, 4); 
-    
+    const scaleX = (viewW - paddingX * 2) / (contentW || 1);
+    const scaleY = (viewH - topPad - bottomPad) / (contentH || 1);
+    const newZoom = Math.min(scaleX, scaleY, 4);
+
+    // Center horizontally
     const scaledW = contentW * newZoom;
-    const scaledH = contentH * newZoom;
     const offsetX = (viewW - scaledW) / 2;
-    const offsetY = (viewH - 40 - scaledH) / 2; // Shift up slightly for line
-    
+
+    // Bottom-center vertically (bounds bottom sits above the screen line)
+    const targetBottomY = viewH - bottomPad;
+
     setPanX(bounds.minX - offsetX / newZoom);
-    setPanY(bounds.minY - offsetY / newZoom);
+    setPanY(bounds.maxY - targetBottomY / newZoom);
     setZoom(newZoom);
-  };
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY]);
 
   // Auto-fit on initial load or seats change
   useEffect(() => {
-    if (seats.length > 0) {
-      const t = setTimeout(fitToView, 30);
-      return () => clearTimeout(t);
-    }
-  }, [seats, bounds]);
+    const t = setTimeout(fitToView, 30);
+    return () => clearTimeout(t);
+  }, [fitToView, seats.length, designerBounds]);
 
   /* ---- Render ---- */
-  const gw = bounds.maxX + 40;
-  const gh = bounds.maxY + 60;
+  const gw = bounds.maxX - bounds.minX + 40;
+  const gh = bounds.maxY - bounds.minY + 60;
 
   return (
     <div className={cn("relative h-[500px] w-full overflow-hidden rounded-xl border border-zinc-200 bg-[#f6f7f9] dark:border-zinc-700 dark:bg-[#111214]", className)}>
@@ -181,29 +238,55 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
         </defs>
 
         <g transform={`scale(${zoom}) translate(${-panX},${-panY})`} style={{ willChange: "transform" }}>
+          {/* Fixed working area boundary (if provided) */}
+          {designerBounds && (
+            <rect
+              x={bounds.minX}
+              y={bounds.minY}
+              width={designerBounds.width}
+              height={designerBounds.height}
+              fill="rgba(59,130,246,0.03)"
+              stroke="rgba(59,130,246,0.35)"
+              strokeWidth={0.8}
+              strokeDasharray="3 2"
+              rx={2}
+            />
+          )}
+
           {/* Screen indicator */}
           <line
-            x1={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 80}
+            x1={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 120}
             y1={bounds.maxY + 8}
-            x2={bounds.minX + (bounds.maxX - bounds.minX) / 2 + 80}
+            x2={bounds.minX + (bounds.maxX - bounds.minX) / 2 + 120}
             y2={bounds.maxY + 8}
             stroke="rgba(217,119,6,0.45)"
-            strokeWidth={2}
+            strokeWidth={3}
             strokeDasharray="4 2.5"
             strokeLinecap="round"
           />
           <rect
-            x={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 12}
+            x={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 18}
             y={bounds.maxY + 10}
-            width={24}
-            height={6}
+            width={36}
+            height={7}
             rx={2}
             fill="rgba(217,119,6,0.3)"
           />
+          <text
+            x={bounds.minX + (bounds.maxX - bounds.minX) / 2}
+            y={bounds.maxY + 23}
+            textAnchor="middle"
+            fontSize={4.2}
+            fontWeight={700}
+            fill="rgba(217,119,6,0.6)"
+            style={{ letterSpacing: "0.2em", fontFamily: "system-ui, sans-serif" }}
+          >
+            SCREEN
+          </text>
 
           {seats.map((seat) => {
-            const px = Number(seat.pos_x) || 0;
-            const py = Number(seat.pos_y) || 0;
+            const px = (Number(seat.pos_x) || 0) + seatRenderOffset.dx;
+            const py = (Number(seat.pos_y) || 0) + seatRenderOffset.dy;
             const w = Number(seat.width) || 15;
             const h = Number(seat.height) || 15;
             const rot = Number(seat.rotation) || 0;
