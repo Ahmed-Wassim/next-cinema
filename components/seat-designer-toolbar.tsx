@@ -39,7 +39,11 @@ interface SeatDesignerToolbarProps {
   className?: string;
 }
 
-const tools: { tool: DesignerTool; label: string; icon: typeof MousePointer2 }[] = [
+const tools: {
+  tool: DesignerTool;
+  label: string;
+  icon: typeof MousePointer2;
+}[] = [
   { tool: "select", label: "Select", icon: MousePointer2 },
   { tool: "pan", label: "Pan", icon: Hand },
   { tool: "place", label: "Place", icon: Plus },
@@ -109,7 +113,10 @@ export function SeatDesignerToolbar({
         ))}
       </div>
 
-      <div className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+      <div
+        className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700"
+        aria-hidden
+      />
 
       {/* Undo / Redo */}
       <div className="flex items-center gap-1">
@@ -137,7 +144,10 @@ export function SeatDesignerToolbar({
         </Button>
       </div>
 
-      <div className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+      <div
+        className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700"
+        aria-hidden
+      />
 
       {/* Zoom controls */}
       <div className="flex items-center gap-1">
@@ -176,7 +186,10 @@ export function SeatDesignerToolbar({
         </Button>
       </div>
 
-      <div className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+      <div
+        className="mx-1.5 h-5 w-px bg-zinc-200 dark:bg-zinc-700"
+        aria-hidden
+      />
 
       {/* Snap */}
       <div className="flex items-center gap-1.5">
@@ -200,7 +213,9 @@ export function SeatDesignerToolbar({
             min={0.5}
             step={0.5}
             value={snapStep}
-            onChange={(e) => onSnapStepChange(Math.max(0.5, Number(e.target.value) || 1))}
+            onChange={(e) =>
+              onSnapStepChange(Math.max(0.5, Number(e.target.value) || 1))
+            }
             className="h-7 w-14 text-xs"
             title="Snap step"
           />

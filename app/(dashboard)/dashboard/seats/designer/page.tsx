@@ -275,6 +275,13 @@ export default function SeatDesignerPage() {
   // NOTE: fitToView is only triggered manually from toolbar or explicit actions.
   const [activeTool, setActiveTool] = useState<DesignerTool>("select");
   const [snapEnabled, setSnapEnabled] = useState(true);
+
+  const viewportCenter = useMemo(() => {
+    return {
+      x: viewport.panX + canvasSize.w / 2 / viewport.zoom,
+      y: viewport.panY + canvasSize.h / 2 / viewport.zoom,
+    };
+  }, [canvasSize, viewport]);
   const [snapStep, setSnapStep] = useState(1);
   const [seatDefaults, setSeatDefaults] = useState<SeatDefaults>({
     width: 15,
@@ -549,7 +556,6 @@ export default function SeatDesignerPage() {
     const layoutSts = withLayoutKeys(generated);
     handleSeatsChange(layoutSts);
     setMessage("Loaded example layout.");
-    setTimeout(() => fitToView(), 50);
   }
 
   return (
@@ -682,6 +688,7 @@ export default function SeatDesignerPage() {
             onSeatDefaultsChange={setSeatDefaults}
             nextRowLabel={nextRowLabel}
             defaultTierId={tierId}
+            viewportCenter={viewportCenter}
             className="lg:col-span-2"
           />
         </div>

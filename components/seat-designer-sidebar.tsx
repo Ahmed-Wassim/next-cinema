@@ -115,6 +115,7 @@ interface SeatDesignerSidebarProps {
   /* Row generator */
   nextRowLabel: string;
   defaultTierId: number;
+  viewportCenter: { x: number; y: number };
 
   className?: string;
 }
@@ -142,6 +143,7 @@ export function SeatDesignerSidebar({
   onSeatDefaultsChange,
   nextRowLabel,
   defaultTierId,
+  viewportCenter,
   className,
 }: SeatDesignerSidebarProps) {
   /* ---- Selected seats ---- */
@@ -251,8 +253,17 @@ export function SeatDesignerSidebar({
     const tier = rowGen.priceTierId ?? defaultTierId;
     const newSeats: LayoutSeat[] = [];
     const startSort = seats.length + 1;
-    // Actual step = seat dimension + gap (no overlap)
+    const rowWidth =
+      count * seatDefaults.width + Math.max(0, count - 1) * rowGen.gapX;
+    const centerX = viewportCenter.x - rowWidth / 2;
+    const centerY = viewportCenter.y - seatDefaults.height / 2;
+
+    // If the user is still using the default origin, center by viewport; otherwise keep custom coords.
+    const startX = rowGen.startX === 10 ? centerX : rowGen.startX;
+    const startY = rowGen.startY === 10 ? centerY : rowGen.startY;
+
     const actualStepX = seatDefaults.width + rowGen.gapX;
+
     for (let i = 0; i < count; i++) {
       newSeats.push({
         layoutKey: crypto.randomUUID(),
@@ -261,8 +272,8 @@ export function SeatDesignerSidebar({
         price_tier_id: tier,
         row: rowGen.rowLabel.trim() || "?",
         number: String(i + 1),
-        pos_x: rowGen.startX + i * actualStepX,
-        pos_y: rowGen.startY,
+        pos_x: startX + i * actualStepX,
+        pos_y: startY,
         rotation: seatDefaults.rotation,
         width: seatDefaults.width,
         height: seatDefaults.height,
@@ -281,7 +292,8 @@ export function SeatDesignerSidebar({
     setRowGen((prev) => ({
       ...prev,
       rowLabel: nextLabel,
-      startY: prev.startY + seatDefaults.height + prev.gapY,
+      startX,
+      startY: startY + seatDefaults.height + prev.gapY,
     }));
   }
 
