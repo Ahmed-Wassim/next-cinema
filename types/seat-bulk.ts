@@ -13,6 +13,7 @@ export interface BulkSeatItem {
   shape: string;
   sort_order: number;
   is_active: boolean;
+  label?: string;
 }
 
 export type SeatNumberingMode = "ltr" | "rtl" | "serpentine";

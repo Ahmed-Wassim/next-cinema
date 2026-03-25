@@ -633,6 +633,94 @@ export function SeatDesignerSidebar({
           )}
         </div>
 
+        {/* Single Seat Details */}
+        {selectedCount === 1 && selectedSeats[0] && (
+          <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/50 mt-3">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Seat Properties
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-zinc-500">Row</Label>
+                <Input
+                  className="h-7 px-2 text-xs"
+                  value={selectedSeats[0].row}
+                  maxLength={10}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, row: val } : s));
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-zinc-500">Number</Label>
+                <Input
+                  className="h-7 px-2 text-xs"
+                  value={selectedSeats[0].number}
+                  maxLength={10}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, number: val } : s));
+                  }}
+                />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <Label className="text-[10px] text-zinc-500">Custom Label (Optional)</Label>
+                <Input
+                  className="h-7 px-2 text-xs"
+                  value={selectedSeats[0].label || ""}
+                  placeholder="e.g. VIP, Wheelchair..."
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, label: val } : s));
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-zinc-500">X Position</Label>
+                <Input
+                  type="number"
+                  step={0.5}
+                  className="h-7 px-2 text-xs"
+                  value={selectedSeats[0].pos_x}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (!isNaN(val)) onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, pos_x: val } : s));
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-zinc-500">Y Position</Label>
+                <Input
+                  type="number"
+                  step={0.5}
+                  className="h-7 px-2 text-xs"
+                  value={selectedSeats[0].pos_y}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (!isNaN(val)) onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, pos_y: val } : s));
+                  }}
+                />
+              </div>
+              <div className="col-span-2 flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="seat-active-toggle"
+                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                  checked={selectedSeats[0].is_active}
+                  onChange={(e) => {
+                    const is_active = e.target.checked;
+                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, is_active } : s));
+                  }}
+                />
+                <Label htmlFor="seat-active-toggle" className="text-xs font-medium cursor-pointer">
+                  Available for booking
+                </Label>
+              </div>
+            </div>
+          </div>
+        )}
+
         {rowLetters.length > 0 && (
           <div className="space-y-1">
             <Label className="text-xs">Select row</Label>

@@ -22,6 +22,14 @@ export interface SeatDefaults {
   is_active: boolean;
 }
 
+/** Fixed working area for the seat designer (SVG user-units). */
+export interface DesignerBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** Configuration for the "Add Row" generator. */
 export interface RowGeneratorConfig {
   seatCount: number;

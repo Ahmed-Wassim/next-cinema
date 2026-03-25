@@ -14,7 +14,7 @@ import { generateBulkSeatsFromCustomRows } from "@/lib/generate-bulk-seats";
 import { getHallSections } from "@/services/hallSectionService";
 import { getHalls } from "@/services/hallService";
 import { getPriceTiers } from "@/services/priceTierService";
-import { bulkInsertSeats, getSeats, updateSeat, deleteSeat } from "@/services/seatService";
+import { bulkInsertSeats, getSeats } from "@/services/seatService";
 import type { Hall } from "@/types/hall";
 import type { Seat } from "@/types/seat";
 import type { BulkSeatItem } from "@/types/seat-bulk";
@@ -22,9 +22,48 @@ import type { HallSection } from "@/types/hall-section";
 import type { PriceTier } from "@/types/price-tier";
 import type { LayoutSeat } from "@/types/seat-layout";
 import { stripLayoutKey, withLayoutKeys } from "@/types/seat-layout";
-import type { CanvasViewport, DesignerTool, SeatDefaults } from "@/types/designer-types";
+import type {
+  CanvasViewport,
+  DesignerBounds,
+  DesignerTool,
+  SeatDefaults,
+} from "@/types/designer-types";
+
+function seatApiToBulkSeatItem(seat: Seat, ctx: { hallId: number; sectionId: number; fallbackTierId: number }): BulkSeatItem & { id?: number } {
+  const s = seat as Record<string, unknown>;
+  return {
+    id: typeof s.id === "number" ? s.id : undefined,
+    hall_id: ctx.hallId,
+    section_id: ctx.sectionId,
+    price_tier_id: (typeof s.price_tier_id === "number" ? (s.price_tier_id as number) : ctx.fallbackTierId) as number,
+    row: (typeof s.row === "string" ? (s.row as string) : (typeof s.row_label === "string" ? (s.row_label as string) : "?")) as string,
+    number: (typeof s.number === "string" ? (s.number as string) : (typeof s.col_label === "string" ? (s.col_label as string) : "1")) as string,
+    pos_x: Number(s.pos_x) || 0,
+    pos_y: Number(s.pos_y) || 0,
+    rotation: Number(s.rotation) || 0,
+    width: Math.max(1, Number(s.width) || 15),
+    height: Math.max(1, Number(s.height) || 15),
+    shape: (typeof s.shape === "string" ? (s.shape as string) : "rect") as string,
+    sort_order: Number(s.sort_order) || 1,
+    is_active:
+      typeof s.is_active === "boolean"
+        ? (s.is_active as boolean)
+        : (typeof s.status === "string" ? String(s.status) === "active" : true),
+  };
+}
 
 export default function SeatDesignerPage() {
+  const designerBounds: DesignerBounds = useMemo(
+    () => ({ x: 0, y: 0, width: 600, height: 400 }),
+    [],
+  );
+
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({
+    w: 900,
+    h: 520,
+  });
+
   /* ---- Reference data ---- */
   const [halls, setHalls] = useState<Hall[]>([]);
   const [sections, setSections] = useState<HallSection[]>([]);
@@ -45,10 +84,72 @@ export default function SeatDesignerPage() {
     seatsRef.current = seats;
   }, [seats]);
 
+  const clampSeatsToBounds = useCallback(
+    (next: LayoutSeat[]) => {
+      const minX = designerBounds.x;
+      const minY = designerBounds.y;
+      return next.map((s) => {
+        const maxX = designerBounds.x + designerBounds.width - s.width;
+        const maxY = designerBounds.y + designerBounds.height - s.height;
+        const x = Math.min(maxX, Math.max(minX, s.pos_x));
+        const y = Math.min(maxY, Math.max(minY, s.pos_y));
+        return x === s.pos_x && y === s.pos_y ? s : { ...s, pos_x: x, pos_y: y };
+      });
+    },
+    [designerBounds],
+  );
 
-  const handleSeatsChange = useCallback((nextSeats: LayoutSeat[] | ((prev: LayoutSeat[]) => LayoutSeat[])) => {
+  const alignSeatsBottomCenter = useCallback(
+    (next: LayoutSeat[]) => {
+      if (next.length === 0) return next;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      for (const s of next) {
+        minX = Math.min(minX, s.pos_x);
+        minY = Math.min(minY, s.pos_y);
+        maxX = Math.max(maxX, s.pos_x + s.width);
+        maxY = Math.max(maxY, s.pos_y + s.height);
+      }
+      if (minX === Infinity) return next;
+
+      const seatsW = Math.max(1, maxX - minX);
+      const seatsH = Math.max(1, maxY - minY);
+
+      const boundsLeft = designerBounds.x;
+      const boundsRight = designerBounds.x + designerBounds.width;
+      const boundsBottom = designerBounds.y + designerBounds.height;
+
+      // Keep a little breathing room above the bottom edge (like a cinema).
+      const bottomInset = 24;
+
+      const targetCenterX = (boundsLeft + boundsRight) / 2;
+      const currentCenterX = (minX + maxX) / 2;
+      const dx = targetCenterX - currentCenterX;
+
+      const targetMaxY = boundsBottom - bottomInset;
+      const dy = targetMaxY - maxY;
+
+      // Apply translation then clamp so we never exit the box.
+      const moved = next.map((s) => ({
+        ...s,
+        pos_x: s.pos_x + dx,
+        pos_y: s.pos_y + dy,
+      }));
+      // If seats are larger than the box, clamping will pin them; still okay.
+      return clampSeatsToBounds(moved);
+    },
+    [designerBounds, clampSeatsToBounds],
+  );
+
+  const handleSeatsChange = useCallback(
+    (nextSeats: LayoutSeat[] | ((prev: LayoutSeat[]) => LayoutSeat[])) => {
     setSeats((prev) => {
-      const next = typeof nextSeats === "function" ? nextSeats(prev) : nextSeats;
+      const rawNext = typeof nextSeats === "function" ? nextSeats(prev) : nextSeats;
+      const next = clampSeatsToBounds(rawNext);
       if (next !== prev) {
          setPast((p) => [...p, prev]);
          setFuture([]);
@@ -56,7 +157,9 @@ export default function SeatDesignerPage() {
       }
       return next;
     });
-  }, []);
+    },
+    [clampSeatsToBounds],
+  );
 
   const undo = useCallback(() => {
     if (past.length === 0) return;
@@ -107,46 +210,66 @@ export default function SeatDesignerPage() {
     zoom: 1.5,
   });
 
-  const fitToView = useCallback((overrideSeats?: LayoutSeat[]) => {
-    const targetSeats = overrideSeats || seatsRef.current;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const s of targetSeats) {
-      const px = Number(s.pos_x) || 0;
-      const py = Number(s.pos_y) || 0;
-      const w = Number(s.width) || 15;
-      const h = Number(s.height) || 15;
-      if (px < minX) minX = px;
-      if (py < minY) minY = py;
-      if (px + w > maxX) maxX = px + w;
-      if (py + h > maxY) maxY = py + h;
-    }
-    if (minX === Infinity) {
-      setViewport({ panX: -20, panY: -20, zoom: 1.5 });
-      return;
-    }
-    const padding = 60;
+  useEffect(() => {
+    const el = canvasWrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (!r) return;
+      setCanvasSize({
+        w: Math.max(320, Math.round(r.width)),
+        h: Math.max(320, Math.round(r.height)),
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const getCanvasViewportSize = useCallback(() => {
+    const el = canvasWrapRef.current;
+    if (!el) return canvasSize;
+    const r = el.getBoundingClientRect();
+    return {
+      w: Math.max(320, Math.round(r.width || canvasSize.w)),
+      h: Math.max(320, Math.round(r.height || canvasSize.h)),
+    };
+  }, [canvasSize]);
+
+  const fitToView = useCallback(() => {
+    const minX = designerBounds.x;
+    const minY = designerBounds.y;
+    const maxX = designerBounds.x + designerBounds.width;
+    const maxY = designerBounds.y + designerBounds.height;
+    const paddingX = 60;
+    const topPad = 40;
+    const bottomPad = 90; // leave space for the SCREEN indicator below
     const contentW = maxX - minX;
     const contentH = maxY - minY;
-    
-    // Estimate canvas size (subtracting sidebar width)
-    const viewW = typeof window !== "undefined" ? window.innerWidth - 300 : 800;
-    const viewH = typeof window !== "undefined" ? window.innerHeight - 150 : 500;
-    
-    const scaleX = (viewW - padding * 2) / (contentW || 1);
-    const scaleY = (viewH - padding * 2) / (contentH || 1);
+
+    const { w: viewW, h: viewH } = getCanvasViewportSize();
+
+    const scaleX = (viewW - paddingX * 2) / (contentW || 1);
+    const scaleY = (viewH - topPad - bottomPad) / (contentH || 1);
     const newZoom = Math.min(scaleX, scaleY, 4);
-    
+
+    // Center horizontally
     const scaledW = contentW * newZoom;
-    const scaledH = contentH * newZoom;
     const offsetX = (viewW - scaledW) / 2;
-    const offsetY = (viewH - scaledH) / 2;
-    
+
+    // Bottom-center vertically (bounds bottom sits above the screen line)
+    const targetBottomY = viewH - bottomPad;
+
     setViewport({
       panX: minX - offsetX / newZoom,
-      panY: minY - offsetY / newZoom,
+      panY: maxY - targetBottomY / newZoom,
       zoom: newZoom,
     });
-  }, [setViewport]);
+  }, [designerBounds, getCanvasViewportSize]);
+
+  useEffect(() => {
+    // Keep it bottom-centered when the canvas resizes.
+    requestAnimationFrame(() => fitToView());
+  }, [canvasSize.w, canvasSize.h, fitToView]);
   const [activeTool, setActiveTool] = useState<DesignerTool>("select");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [snapStep, setSnapStep] = useState(1);
@@ -166,6 +289,7 @@ export default function SeatDesignerPage() {
   const [nextSeatNumber, setNextSeatNumber] = useState(1);
 
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -187,7 +311,7 @@ export default function SeatDesignerPage() {
         setError("Could not load halls, sections, or tiers.");
       }
     })();
-  }, []);
+  }, [designerBounds]);
 
   /* ---- Load draft from builder (if any) ---- */
   useEffect(() => {
@@ -197,21 +321,42 @@ export default function SeatDesignerPage() {
     setSectionId(draft.sectionId);
     setTierId(draft.tierId);
     const layoutSts = withLayoutKeys(draft.seats);
-    setSeats(layoutSts);
+    setSeats(alignSeatsBottomCenter(layoutSts));
     setDraftLoaded(true);
     setMessage("Loaded layout draft from the seat builder.");
-    setTimeout(() => fitToView(layoutSts), 50);
-  }, [fitToView]);
+    requestAnimationFrame(() => requestAnimationFrame(() => fitToView()));
+  }, [fitToView, alignSeatsBottomCenter]);
 
-  /* ---- Load Existing Seats from Database ---- */
-  // The user explicitly requested to revert this feature to keep the designer strictly as a blank slate builder.
-  // Instead of syncing existing layouts across edits, the builder works as a "new layout" factory.
-  useEffect(() => {
-    // Reverted implementation: No automatic database pull on sectionId change.
-    if (draftLoaded) {
-      setDraftLoaded(false);
+  const loadExistingSeats = useCallback(async () => {
+    if (!sectionId || !hallId) return;
+    setError(null);
+    setMessage(null);
+    setLoadingExisting(true);
+    try {
+      const res = await getSeats({ hall_section_id: sectionId, per_page: 1000 });
+      const data = extractPaginated<Seat>(res).data;
+      const bulk = data.map((s) =>
+        seatApiToBulkSeatItem(s, { hallId, sectionId, fallbackTierId: tierId || 0 }),
+      );
+      const layout = withLayoutKeys(bulk);
+      handleSeatsChange(alignSeatsBottomCenter(layout));
+      setHasSubmitted(true); // this mirrors server state
+      setMessage(`Loaded ${layout.length} existing seats for this section.`);
+      requestAnimationFrame(() => requestAnimationFrame(() => fitToView()));
+    } catch {
+      setError("Could not load existing seats for this section.");
+    } finally {
+      setLoadingExisting(false);
     }
-  }, [sectionId, draftLoaded]);
+  }, [sectionId, hallId, tierId, handleSeatsChange, fitToView, alignSeatsBottomCenter]);
+
+  /* ---- Auto-load existing seats (only when empty, and no draft handoff) ---- */
+  useEffect(() => {
+    if (!hallId || !sectionId) return;
+    if (draftLoaded) return;
+    if (seatsRef.current.length > 0) return;
+    void loadExistingSeats();
+  }, [hallId, sectionId, draftLoaded, loadExistingSeats]);
 
   /* ---- Derived: sections & tiers for selected hall ---- */
   const sectionsForHall = useMemo(
@@ -325,11 +470,11 @@ export default function SeatDesignerPage() {
     const layoutSts = withLayoutKeys(generated);
     handleSeatsChange(layoutSts);
     setMessage("Loaded example layout.");
-    setTimeout(() => fitToView(layoutSts), 50);
+    setTimeout(() => fitToView(), 50);
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 px-4 pb-4">
+    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 overflow-hidden px-4 pb-4">
       <SeatsSubnav />
 
       {/* Header */}
@@ -366,6 +511,15 @@ export default function SeatDesignerPage() {
             type="button"
             variant="outline"
             className="text-zinc-600 dark:text-zinc-400"
+            disabled={loadingExisting || !hallId || !sectionId}
+            onClick={() => void loadExistingSeats()}
+          >
+            {loadingExisting ? "Loading…" : "Load existing seats"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="text-zinc-600 dark:text-zinc-400"
             onClick={loadExampleLayout}
           >
             Load Example Template
@@ -393,54 +547,59 @@ export default function SeatDesignerPage() {
       />
 
       {/* Canvas + Sidebar */}
-      <div className="flex flex-1 gap-3 overflow-hidden">
-        <div className="min-w-0 flex-1">
-          <SeatDesignerCanvas
+      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/40">
+        <div className="grid gap-3 lg:grid-cols-5">
+          <div ref={canvasWrapRef} className="min-w-0 lg:col-span-3">
+            <SeatDesignerCanvas
+              seats={seats}
+              onSeatsChange={handleSeatsChange}
+              selectedKeys={selectedKeys}
+              onSelectionChange={setSelectedKeys}
+              tierColorById={tierColorById}
+              viewport={viewport}
+              onViewportChange={setViewport}
+              activeTool={activeTool}
+              seatDefaults={seatDefaults}
+              snapEnabled={snapEnabled}
+              snapStep={snapStep}
+              hallId={hallId}
+              sectionId={sectionId}
+              defaultTierId={tierId}
+              paintTierId={paintTierId}
+              nextRowLabel={nextRowLabel}
+              nextSeatNumber={nextSeatNumber}
+              designerBounds={designerBounds}
+              constrainToBounds
+              onSeatPlaced={handleSeatPlaced}
+              className="h-full"
+            />
+          </div>
+          <SeatDesignerSidebar
+            halls={halls}
+            sections={sections}
+            tiers={tiers}
+            hallId={hallId}
+            sectionId={sectionId}
+            tierId={tierId}
+            onHallChange={setHallId}
+            onSectionChange={setSectionId}
+            onTierChange={setTierId}
+            sectionsForHall={sectionsForHall}
+            tiersForHall={tiersForHall}
             seats={seats}
             onSeatsChange={handleSeatsChange}
             selectedKeys={selectedKeys}
             onSelectionChange={setSelectedKeys}
-            tierColorById={tierColorById}
-            viewport={viewport}
-            onViewportChange={setViewport}
             activeTool={activeTool}
-            seatDefaults={seatDefaults}
-            snapEnabled={snapEnabled}
-            snapStep={snapStep}
-            hallId={hallId}
-            sectionId={sectionId}
-            defaultTierId={tierId}
             paintTierId={paintTierId}
+            onPaintTierChange={setPaintTierId}
+            seatDefaults={seatDefaults}
+            onSeatDefaultsChange={setSeatDefaults}
             nextRowLabel={nextRowLabel}
-            nextSeatNumber={nextSeatNumber}
-            onSeatPlaced={handleSeatPlaced}
-            className="h-full"
+            defaultTierId={tierId}
+            className="lg:col-span-2"
           />
         </div>
-        <SeatDesignerSidebar
-          halls={halls}
-          sections={sections}
-          tiers={tiers}
-          hallId={hallId}
-          sectionId={sectionId}
-          tierId={tierId}
-          onHallChange={setHallId}
-          onSectionChange={setSectionId}
-          onTierChange={setTierId}
-          sectionsForHall={sectionsForHall}
-          tiersForHall={tiersForHall}
-          seats={seats}
-          onSeatsChange={handleSeatsChange}
-          selectedKeys={selectedKeys}
-          onSelectionChange={setSelectedKeys}
-          activeTool={activeTool}
-          paintTierId={paintTierId}
-          onPaintTierChange={setPaintTierId}
-          seatDefaults={seatDefaults}
-          onSeatDefaultsChange={setSeatDefaults}
-          nextRowLabel={nextRowLabel}
-          defaultTierId={tierId}
-        />
       </div>
     </div>
   );

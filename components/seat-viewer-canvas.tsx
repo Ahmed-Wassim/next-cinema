@@ -183,9 +183,9 @@ export function SeatViewerCanvas({ seats, onSeatClick, className }: SeatViewerCa
         <g transform={`scale(${zoom}) translate(${-panX},${-panY})`} style={{ willChange: "transform" }}>
           {/* Screen indicator */}
           <line
-            x1={bounds.minX}
+            x1={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 80}
             y1={bounds.maxY + 8}
-            x2={bounds.maxX}
+            x2={bounds.minX + (bounds.maxX - bounds.minX) / 2 + 80}
             y2={bounds.maxY + 8}
             stroke="rgba(217,119,6,0.45)"
             strokeWidth={2}

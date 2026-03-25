@@ -12,7 +12,12 @@ import {
 
 import { cn } from "@/lib/utils";
 import type { LayoutSeat } from "@/types/seat-layout";
-import type { CanvasViewport, DesignerTool, SeatDefaults } from "@/types/designer-types";
+import type {
+  CanvasViewport,
+  DesignerBounds,
+  DesignerTool,
+  SeatDefaults,
+} from "@/types/designer-types";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -102,6 +107,10 @@ interface SeatDesignerCanvasProps {
   paintTierId: number;
   nextRowLabel: string;
   nextSeatNumber: number;
+  /** Fixed area the user is allowed to place seats within. */
+  designerBounds: DesignerBounds;
+  /** If true, clamp drag/place inside `designerBounds`. */
+  constrainToBounds?: boolean;
   onSeatPlaced?: () => void;
   className?: string;
 }
@@ -128,6 +137,8 @@ export function SeatDesignerCanvas({
   paintTierId,
   nextRowLabel,
   nextSeatNumber,
+  designerBounds,
+  constrainToBounds = true,
   onSeatPlaced,
   className,
 }: SeatDesignerCanvasProps) {
@@ -156,19 +167,28 @@ export function SeatDesignerCanvas({
 
   /* ---- Computed Bounds ---- */
   const bounds = useMemo(() => {
-    if (seats.length === 0) return { minX: 100, minY: 100, maxX: 500, maxY: 400 };
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const s of seats) {
-      if (s.pos_x < minX) minX = s.pos_x;
-      if (s.pos_y < minY) minY = s.pos_y;
-      if (s.pos_x + s.width > maxX) maxX = s.pos_x + s.width;
-      if (s.pos_y + s.height > maxY) maxY = s.pos_y + s.height;
-    }
+    const minX = designerBounds.x;
+    const minY = designerBounds.y;
+    const maxX = designerBounds.x + designerBounds.width;
+    const maxY = designerBounds.y + designerBounds.height;
     return { minX, minY, maxX, maxY };
-  }, [seats]);
+  }, [designerBounds]);
+
+  const clampSeatToBounds = useCallback(
+    (s: LayoutSeat): LayoutSeat => {
+      if (!constrainToBounds) return s;
+      const minX = designerBounds.x;
+      const minY = designerBounds.y;
+      const maxX = designerBounds.x + designerBounds.width - s.width;
+      const maxY = designerBounds.y + designerBounds.height - s.height;
+      return {
+        ...s,
+        pos_x: clamp(s.pos_x, minX, maxX),
+        pos_y: clamp(s.pos_y, minY, maxY),
+      };
+    },
+    [constrainToBounds, designerBounds],
+  );
 
   /* ---- SVG grid pattern (using defs for performance) ---- */
   const gridPatternId = "designer-grid";
@@ -318,7 +338,7 @@ export function SeatDesignerCanvas({
           seatsRef.current.map((s) => {
             const origin = g.origins.get(s.layoutKey);
             if (!origin) return s;
-            return { ...s, pos_x: origin.x + dx, pos_y: origin.y + dy };
+            return clampSeatToBounds({ ...s, pos_x: origin.x + dx, pos_y: origin.y + dy });
           }),
         );
         return;
@@ -365,7 +385,11 @@ export function SeatDesignerCanvas({
           onSeatsChange(
             seatsRef.current.map((s) => {
               if (!g.origins.has(s.layoutKey)) return s;
-              return { ...s, pos_x: snap(s.pos_x), pos_y: snap(s.pos_y) };
+              return clampSeatToBounds({
+                ...s,
+                pos_x: snap(s.pos_x),
+                pos_y: snap(s.pos_y),
+              });
             }),
           );
         }
@@ -413,8 +437,8 @@ export function SeatDesignerCanvas({
         }
 
         if (tool === "place" && g.target === "canvas") {
-          const x = snap(g.startSvg.x - seatDefaults.width / 2);
-          const y = snap(g.startSvg.y - seatDefaults.height / 2);
+          const x0 = snap(g.startSvg.x - seatDefaults.width / 2);
+          const y0 = snap(g.startSvg.y - seatDefaults.height / 2);
           const newSeat: LayoutSeat = {
             layoutKey: crypto.randomUUID(),
             hall_id: hallId,
@@ -422,8 +446,8 @@ export function SeatDesignerCanvas({
             price_tier_id: defaultTierId,
             row: nextRowLabel,
             number: String(nextSeatNumber),
-            pos_x: x,
-            pos_y: y,
+            pos_x: x0,
+            pos_y: y0,
             rotation: seatDefaults.rotation,
             width: seatDefaults.width,
             height: seatDefaults.height,
@@ -431,8 +455,9 @@ export function SeatDesignerCanvas({
             sort_order: seatsRef.current.length + 1,
             is_active: seatDefaults.is_active,
           };
-          onSeatsChange([...seatsRef.current, newSeat]);
-          onSelectionChange(new Set([newSeat.layoutKey]));
+          const clamped = clampSeatToBounds(newSeat);
+          onSeatsChange([...seatsRef.current, clamped]);
+          onSelectionChange(new Set([clamped.layoutKey]));
           onSeatPlaced?.();
           return;
         }
@@ -587,30 +612,43 @@ export function SeatDesignerCanvas({
           {/* Grid background */}
           <rect x={bounds.minX - 100} y={bounds.minY - 100} width={gw + 200} height={gh + 200} fill={`url(#${gridMajorId})`} />
 
+          {/* Designer working area boundary */}
+          <rect
+            x={bounds.minX}
+            y={bounds.minY}
+            width={designerBounds.width}
+            height={designerBounds.height}
+            fill="rgba(59,130,246,0.03)"
+            stroke="rgba(59,130,246,0.35)"
+            strokeWidth={0.6}
+            strokeDasharray="3 2"
+            rx={2}
+          />
+
           {/* Screen indicator */}
           <line
-            x1={bounds.minX}
+            x1={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 120}
             y1={bounds.maxY + 15}
-            x2={bounds.maxX}
+            x2={bounds.minX + (bounds.maxX - bounds.minX) / 2 + 120}
             y2={bounds.maxY + 15}
             stroke="rgba(217,119,6,0.45)"
-            strokeWidth={2}
+            strokeWidth={3}
             strokeDasharray="4 2.5"
             strokeLinecap="round"
           />
           <rect
-            x={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 12}
-            y={bounds.maxY + 17}
-            width={24}
-            height={5}
-            rx={1.5}
+            x={bounds.minX + (bounds.maxX - bounds.minX) / 2 - 18}
+            y={bounds.maxY + 18}
+            width={36}
+            height={7}
+            rx={2}
             fill="rgba(217,119,6,0.08)"
           />
           <text
             x={bounds.minX + (bounds.maxX - bounds.minX) / 2}
-            y={bounds.maxY + 21}
+            y={bounds.maxY + 24}
             textAnchor="middle"
-            fontSize={3}
+            fontSize={4.2}
             fontWeight={700}
             fill="rgba(217,119,6,0.6)"
             style={{ letterSpacing: "0.2em", fontFamily: "system-ui, sans-serif" }}
