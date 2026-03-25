@@ -29,6 +29,12 @@ import type {
   SeatDefaults,
 } from "@/types/designer-types";
 
+const WORKSPACE_WIDTH = 820;
+const WORKSPACE_HEIGHT = 560;
+const DEFAULT_ZOOM = 1.1;
+const DESIGNER_BOUNDS_WIDTH = 600;
+const DESIGNER_BOUNDS_HEIGHT = 400;
+
 function seatApiToBulkSeatItem(
   seat: Seat,
   ctx: { hallId: number; sectionId: number; fallbackTierId: number },
@@ -71,14 +77,20 @@ function seatApiToBulkSeatItem(
 
 export default function SeatDesignerPage() {
   const designerBounds: DesignerBounds = useMemo(
-    () => ({ x: 0, y: 0, width: 600, height: 400 }),
+    () =>
+      ({
+        x: 0,
+        y: 0,
+        width: DESIGNER_BOUNDS_WIDTH,
+        height: DESIGNER_BOUNDS_HEIGHT,
+      }) satisfies DesignerBounds,
     [],
   );
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({
-    w: 900,
-    h: 520,
+    w: WORKSPACE_WIDTH,
+    h: WORKSPACE_HEIGHT,
   });
 
   /* ---- Reference data ---- */
@@ -134,9 +146,6 @@ export default function SeatDesignerPage() {
         maxY = Math.max(maxY, s.pos_y + s.height);
       }
       if (minX === Infinity) return next;
-
-      const seatsW = Math.max(1, maxX - minX);
-      const seatsH = Math.max(1, maxY - minY);
 
       const boundsLeft = designerBounds.x;
       const boundsRight = designerBounds.x + designerBounds.width;
@@ -229,9 +238,15 @@ export default function SeatDesignerPage() {
 
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [viewport, setViewport] = useState<CanvasViewport>({
-    panX: 0,
-    panY: 0,
-    zoom: 1.1,
+    panX:
+      designerBounds.x +
+      designerBounds.width / 2 -
+      WORKSPACE_WIDTH / 2 / DEFAULT_ZOOM,
+    panY:
+      designerBounds.y +
+      designerBounds.height / 2 -
+      WORKSPACE_HEIGHT / 2 / DEFAULT_ZOOM,
+    zoom: DEFAULT_ZOOM,
   });
 
   useEffect(() => {
@@ -261,7 +276,7 @@ export default function SeatDesignerPage() {
 
   const fitToView = useCallback(() => {
     const { w: viewW, h: viewH } = getCanvasViewportSize();
-    const zoom = 1.1;
+    const zoom = DEFAULT_ZOOM;
 
     const contentCenterX = designerBounds.x + designerBounds.width / 2;
     const contentCenterY = designerBounds.y + designerBounds.height / 2;
@@ -295,7 +310,7 @@ export default function SeatDesignerPage() {
   const [paintTierId, setPaintTierId] = useState(0);
 
   /* ---- Auto-incrementing labels for "place" tool ---- */
-  const [nextRowLabel, setNextRowLabel] = useState("A");
+  const nextRowLabel = "A";
   const [nextSeatNumber, setNextSeatNumber] = useState(1);
 
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -368,7 +383,6 @@ export default function SeatDesignerPage() {
     hallId,
     tierId,
     handleSeatsChange,
-    fitToView,
     alignSeatsBottomCenter,
   ]);
 
@@ -639,31 +653,36 @@ export default function SeatDesignerPage() {
 
       {/* Canvas + Sidebar */}
       <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/40">
-        <div className="grid gap-3 lg:grid-cols-5">
-          <div ref={canvasWrapRef} className="min-w-0 lg:col-span-3">
-            <SeatDesignerCanvas
-              seats={seats}
-              onSeatsChange={handleSeatsChange}
-              selectedKeys={selectedKeys}
-              onSelectionChange={setSelectedKeys}
-              tierColorById={tierColorById}
-              viewport={viewport}
-              onViewportChange={setViewport}
-              activeTool={activeTool}
-              seatDefaults={seatDefaults}
-              snapEnabled={snapEnabled}
-              snapStep={snapStep}
-              hallId={hallId}
-              sectionId={sectionId}
-              defaultTierId={tierId}
-              paintTierId={paintTierId}
-              nextRowLabel={nextRowLabel}
-              nextSeatNumber={nextSeatNumber}
-              designerBounds={designerBounds}
-              constrainToBounds
-              onSeatPlaced={handleSeatPlaced}
-              className="h-full"
-            />
+        <div className="flex h-full min-h-0 flex-col gap-3 overflow-auto lg:flex-row lg:items-start">
+          <div className="min-w-0 lg:flex-1">
+            <div
+              ref={canvasWrapRef}
+              className="mx-auto h-[500px] w-full max-w-full lg:h-[560px] lg:w-[820px] lg:max-w-none lg:flex-none"
+            >
+              <SeatDesignerCanvas
+                seats={seats}
+                onSeatsChange={handleSeatsChange}
+                selectedKeys={selectedKeys}
+                onSelectionChange={setSelectedKeys}
+                tierColorById={tierColorById}
+                viewport={viewport}
+                onViewportChange={setViewport}
+                activeTool={activeTool}
+                seatDefaults={seatDefaults}
+                snapEnabled={snapEnabled}
+                snapStep={snapStep}
+                hallId={hallId}
+                sectionId={sectionId}
+                defaultTierId={tierId}
+                paintTierId={paintTierId}
+                nextRowLabel={nextRowLabel}
+                nextSeatNumber={nextSeatNumber}
+                designerBounds={designerBounds}
+                constrainToBounds
+                onSeatPlaced={handleSeatPlaced}
+                className="h-full"
+              />
+            </div>
           </div>
           <SeatDesignerSidebar
             halls={halls}
@@ -689,7 +708,7 @@ export default function SeatDesignerPage() {
             nextRowLabel={nextRowLabel}
             defaultTierId={tierId}
             viewportCenter={viewportCenter}
-            className="lg:col-span-2"
+            className="lg:flex-none"
           />
         </div>
       </div>
