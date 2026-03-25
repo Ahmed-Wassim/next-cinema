@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutGrid, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -89,6 +90,8 @@ export default function SeatsPage() {
   });
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Seat | null>(null);
+  const [deleting, setDeleting] = useState<Seat | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const sectionLabelById = useMemo(() => {
     const m = new Map<number, string>();
@@ -239,6 +242,20 @@ export default function SeatsPage() {
       [s.row_label, s.col_label].filter(Boolean).join(" · ") ||
       `— (${s.id})`
     );
+  }
+
+  void handleDelete;
+  async function confirmDelete(row: Seat) {
+    setDeleteBusy(true);
+    try {
+      await deleteSeat(row.id);
+      setDeleting(null);
+      await load();
+    } catch {
+      setError("Could not delete seat.");
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   return (
@@ -457,26 +474,30 @@ export default function SeatsPage() {
                   </TableCell>
                   <TableCell>{r.row_label ?? "—"}</TableCell>
                   <TableCell>{r.col_label ?? "—"}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(r);
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDelete(r)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => {
+                          setEditing(r);
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => setDeleting(r)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -568,6 +589,20 @@ export default function SeatsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="Delete seat"
+        description={
+          deleting
+            ? `This will permanently remove "${displaySeatLabel(deleting)}".`
+            : ""
+        }
+        onConfirm={() => (deleting ? confirmDelete(deleting) : undefined)}
+        loading={deleteBusy}
+      />
     </div>
   );
 }

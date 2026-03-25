@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "dialog-overlay fixed inset-0 z-50 bg-black/44 backdrop-blur-[2px] will-change-[opacity,backdrop-filter] data-[state=open]:animate-[dialog-overlay-in_420ms_cubic-bezier(0.16,1,0.3,1)] data-[state=closed]:animate-[dialog-overlay-out_260ms_cubic-bezier(0.4,0,1,1)] motion-reduce:animate-none",
       className,
     )}
     {...props}
@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-zinc-200 bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] dark:border-zinc-800 dark:bg-zinc-950 sm:rounded-lg",
+        "dialog-content fixed inset-0 z-50 m-auto grid h-fit max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-lg gap-4 overflow-y-auto border border-zinc-200 bg-white p-6 shadow-2xl will-change-[opacity] data-[state=open]:animate-[dialog-content-in_280ms_ease-out] data-[state=closed]:animate-[dialog-content-out_180ms_ease-in] motion-reduce:animate-none dark:border-zinc-800 dark:bg-zinc-950 sm:w-full sm:rounded-xl",
         className,
       )}
       {...props}

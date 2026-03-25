@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -66,6 +67,8 @@ export default function HallsPage() {
   });
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Hall | null>(null);
+  const [deleting, setDeleting] = useState<Hall | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -161,6 +164,20 @@ export default function HallsPage() {
       await load();
     } catch {
       setError("Could not delete hall.");
+    }
+  }
+
+  void handleDelete;
+  async function confirmDelete(row: Hall) {
+    setDeleteBusy(true);
+    try {
+      await deleteHall(row.id);
+      setDeleting(null);
+      await load();
+    } catch {
+      setError("Could not delete hall.");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -300,30 +317,34 @@ export default function HallsPage() {
                   <TableCell className="text-zinc-700 dark:text-zinc-300">
                     {h.layout_type ?? "—"}
                   </TableCell>
-                  <TableCell className="space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing({
-                          ...h,
-                          total_seats: h.total_seats ?? 0,
-                          layout_type: h.layout_type ?? "",
-                        });
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDelete(h)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => {
+                          setEditing({
+                            ...h,
+                            total_seats: h.total_seats ?? 0,
+                            layout_type: h.layout_type ?? "",
+                          });
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => setDeleting(h)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -438,6 +459,20 @@ export default function HallsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="Delete hall"
+        description={
+          deleting
+            ? `This will permanently remove "${deleting.name}".`
+            : ""
+        }
+        onConfirm={() => (deleting ? confirmDelete(deleting) : undefined)}
+        loading={deleteBusy}
+      />
     </div>
   );
 }

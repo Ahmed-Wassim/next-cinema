@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, Clock3, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,133 @@ function fromLocalInput(local: string) {
   return Number.isNaN(d.getTime()) ? local : d.toISOString();
 }
 
+function splitLocalDateTime(local: string) {
+  if (!local) return { date: "", time: "" };
+  const [date = "", time = ""] = local.split("T");
+  return { date, time: time.slice(0, 5) };
+}
+
+function mergeLocalDateTime(date: string, time: string) {
+  if (!date) return "";
+  return `${date}T${(time || "19:00").slice(0, 5)}`;
+}
+
+function formatLocalPreview(local: string) {
+  if (!local) return "Pick a date and time";
+  const date = new Date(local);
+  if (Number.isNaN(date.getTime())) return local;
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+const showtimeTimePresets = [
+  { label: "Morning", value: "10:00" },
+  { label: "Noon", value: "12:30" },
+  { label: "Matinee", value: "15:00" },
+  { label: "Prime", value: "18:30" },
+  { label: "Late", value: "21:30" },
+];
+
+function ShowtimeDateTimeField({
+  label,
+  value,
+  onChange,
+  idPrefix,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  idPrefix: string;
+}) {
+  const parts = useMemo(() => splitLocalDateTime(value), [value]);
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Label className="text-sm font-medium">{label}</Label>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Choose the screening day first, then lock the exact showtime.
+          </p>
+        </div>
+        <div className="rounded-full bg-amber-100 p-2 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+          <Sparkles className="h-4 w-4" />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-date`} className="text-xs text-zinc-500">
+            Date
+          </Label>
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Input
+              id={`${idPrefix}-date`}
+              type="date"
+              value={parts.date}
+              onChange={(e) =>
+                onChange(mergeLocalDateTime(e.target.value, parts.time))
+              }
+              className="h-11 bg-white pl-9 dark:bg-zinc-950"
+              required
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}-time`} className="text-xs text-zinc-500">
+            Time
+          </Label>
+          <div className="relative">
+            <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Input
+              id={`${idPrefix}-time`}
+              type="time"
+              step={300}
+              value={parts.time}
+              onChange={(e) =>
+                onChange(mergeLocalDateTime(parts.date, e.target.value))
+              }
+              className="h-11 bg-white pl-9 dark:bg-zinc-950"
+              required
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs text-zinc-500">Quick times</Label>
+        <div className="flex flex-wrap gap-2">
+          {showtimeTimePresets.map((preset) => (
+            <Button
+              key={preset.value}
+              type="button"
+              variant={parts.time === preset.value ? "default" : "outline"}
+              size="sm"
+              className="rounded-full"
+              onClick={() => onChange(mergeLocalDateTime(parts.date, preset.value))}
+            >
+              {preset.label}
+              <span className="ml-1 opacity-80">{preset.value}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+        <span className="font-medium">Scheduled for:</span>{" "}
+        {formatLocalPreview(value)}
+      </div>
+    </div>
+  );
+}
+
 export default function ShowtimesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [halls, setHalls] = useState<Hall[]>([]);
@@ -87,6 +216,8 @@ export default function ShowtimesPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Showtime | null>(null);
   const [editingLocalTime, setEditingLocalTime] = useState("");
+  const [deleting, setDeleting] = useState<Showtime | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const movieTitleById = useMemo(() => {
     const m = new Map<number, string>();
@@ -215,6 +346,20 @@ export default function ShowtimesPage() {
     }
   }
 
+  void handleDelete;
+  async function confirmDelete(row: Showtime) {
+    setDeleteBusy(true);
+    try {
+      await deleteShowtime(row.id);
+      setDeleting(null);
+      await load();
+    } catch {
+      setError("Could not delete showtime.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -305,18 +450,16 @@ export default function ShowtimesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="st-start">Start</Label>
-                  <Input
-                    id="st-start"
-                    type="datetime-local"
+                  <ShowtimeDateTimeField
+                    idPrefix="st-create"
+                    label="Start time"
                     value={createValues.start_time_local}
-                    onChange={(e) =>
+                    onChange={(next) =>
                       setCreateValues((s) => ({
                         ...s,
-                        start_time_local: e.target.value,
+                        start_time_local: next,
                       }))
                     }
-                    required
                   />
                 </div>
               </div>
@@ -359,27 +502,31 @@ export default function ShowtimesPage() {
                     {tierNameById.get(r.price_tier_id) ?? r.price_tier_id}
                   </TableCell>
                   <TableCell>{r.start_time}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(r);
-                        setEditingLocalTime(toLocalInput(r.start_time));
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDelete(r)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => {
+                          setEditing(r);
+                          setEditingLocalTime(toLocalInput(r.start_time));
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => setDeleting(r)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -473,12 +620,11 @@ export default function ShowtimesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Start</Label>
-                  <Input
-                    type="datetime-local"
+                  <ShowtimeDateTimeField
+                    idPrefix="st-edit"
+                    label="Start time"
                     value={editingLocalTime}
-                    onChange={(e) => setEditingLocalTime(e.target.value)}
-                    required
+                    onChange={setEditingLocalTime}
                   />
                 </div>
               </div>
@@ -489,6 +635,20 @@ export default function ShowtimesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="Delete showtime"
+        description={
+          deleting
+            ? `This will remove the ${movieTitleById.get(deleting.movie_id) ?? "selected"} showtime.`
+            : ""
+        }
+        onConfirm={() => (deleting ? confirmDelete(deleting) : undefined)}
+        loading={deleteBusy}
+      />
     </div>
   );
 }

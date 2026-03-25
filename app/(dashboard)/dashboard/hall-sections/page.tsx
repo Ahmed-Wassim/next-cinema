@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -63,6 +64,8 @@ export default function HallSectionsPage() {
   });
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<HallSection | null>(null);
+  const [deleting, setDeleting] = useState<HallSection | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const hallNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -158,6 +161,20 @@ export default function HallSectionsPage() {
     }
   }
 
+  void handleDelete;
+  async function confirmDelete(row: HallSection) {
+    setDeleteBusy(true);
+    try {
+      await deleteHallSection(row.id);
+      setDeleting(null);
+      await load();
+    } catch {
+      setError("Could not delete section.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -248,26 +265,30 @@ export default function HallSectionsPage() {
                     {hallNameById.get(r.hall_id) ?? r.hall_id}
                   </TableCell>
                   <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(r);
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDelete(r)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => {
+                          setEditing(r);
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => setDeleting(r)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -336,6 +357,20 @@ export default function HallSectionsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="Delete hall section"
+        description={
+          deleting
+            ? `This will permanently remove "${deleting.name}".`
+            : ""
+        }
+        onConfirm={() => (deleting ? confirmDelete(deleting) : undefined)}
+        loading={deleteBusy}
+      />
     </div>
   );
 }

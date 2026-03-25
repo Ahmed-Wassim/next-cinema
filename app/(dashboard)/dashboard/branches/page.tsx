@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -105,6 +106,21 @@ export default function BranchesPage() {
   });
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
+  const [deleting, setDeleting] = useState<Branch | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  async function executeDelete(row: Branch) {
+    setDeleteBusy(true);
+    try {
+      await deleteBranch(row.id);
+      setDeleting(null);
+      await load();
+    } catch {
+      setError("Could not delete branch.");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,7 +177,7 @@ export default function BranchesPage() {
     }
   }
 
-  async function handleDelete(row: Branch) {
+  async function confirmDelete(row: Branch) {
     if (!window.confirm(`Delete branch “${row.name}”?`)) return;
     try {
       await deleteBranch(row.id);
@@ -170,6 +186,7 @@ export default function BranchesPage() {
       setError("Could not delete branch.");
     }
   }
+  void confirmDelete;
 
   return (
     <div className="space-y-6">
@@ -228,26 +245,30 @@ export default function BranchesPage() {
                   <TableCell>{b.city}</TableCell>
                   <TableCell>{b.address}</TableCell>
                   <TableCell>{b.timezone}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(b);
-                        setEditOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => void handleDelete(b)}
-                    >
-                      Delete
-                    </Button>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => {
+                          setEditing(b);
+                          setEditOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="min-w-[72px]"
+                        onClick={() => setDeleting(b)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -291,6 +312,20 @@ export default function BranchesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title="Delete branch"
+        description={
+          deleting
+            ? `This will permanently remove "${deleting.name}".`
+            : ""
+        }
+        onConfirm={() => (deleting ? executeDelete(deleting) : undefined)}
+        loading={deleteBusy}
+      />
     </div>
   );
 }
