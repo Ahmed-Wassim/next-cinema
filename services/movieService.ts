@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 export interface MoviesListParams {
   page?: number;
   per_page?: number;
+  search?: string;
 }
 
 export const getMovies = (params?: MoviesListParams) =>

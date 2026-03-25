@@ -12,6 +12,12 @@ export interface LandlordMovie {
   id: number;
   title: string;
   poster_url?: string;
+  backdrop_url?: string;
+  overview?: string;
+  release_date?: string;
+  language?: string;
+  popularity?: number | string;
+  genres?: string[];
 }
 
 export interface MovieLandlordDetails {
