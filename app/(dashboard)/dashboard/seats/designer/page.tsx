@@ -229,9 +229,9 @@ export default function SeatDesignerPage() {
 
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [viewport, setViewport] = useState<CanvasViewport>({
-    panX: -2,
-    panY: -2,
-    zoom: 1.5,
+    panX: 0,
+    panY: 0,
+    zoom: 1.1,
   });
 
   useEffect(() => {
@@ -260,40 +260,19 @@ export default function SeatDesignerPage() {
   }, [canvasSize]);
 
   const fitToView = useCallback(() => {
-    const minX = designerBounds.x;
-    const minY = designerBounds.y;
-    const maxX = designerBounds.x + designerBounds.width;
-    const maxY = designerBounds.y + designerBounds.height;
-    const paddingX = 60;
-    const topPad = 40;
-    const bottomPad = 90; // leave space for the SCREEN indicator below
-    const contentW = maxX - minX;
-    const contentH = maxY - minY;
-
     const { w: viewW, h: viewH } = getCanvasViewportSize();
+    const zoom = 1.1;
 
-    const scaleX = (viewW - paddingX * 2) / (contentW || 1);
-    const scaleY = (viewH - topPad - bottomPad) / (contentH || 1);
-    const newZoom = Math.min(scaleX, scaleY, 4);
+    const contentCenterX = designerBounds.x + designerBounds.width / 2;
+    const contentCenterY = designerBounds.y + designerBounds.height / 2;
 
-    // Center horizontally
-    const scaledW = contentW * newZoom;
-    const offsetX = (viewW - scaledW) / 2;
+    const panX = contentCenterX - viewW / 2 / zoom;
+    const panY = contentCenterY - viewH / 2 / zoom;
 
-    // Bottom-center vertically (bounds bottom sits above the screen line)
-    const targetBottomY = viewH - bottomPad;
-
-    setViewport({
-      panX: minX - offsetX / newZoom,
-      panY: maxY - targetBottomY / newZoom,
-      zoom: newZoom,
-    });
+    setViewport({ panX, panY, zoom });
   }, [designerBounds, getCanvasViewportSize]);
 
-  useEffect(() => {
-    // Keep it bottom-centered when the canvas resizes.
-    requestAnimationFrame(() => fitToView());
-  }, [canvasSize.w, canvasSize.h, fitToView]);
+  // NOTE: fitToView is only triggered manually from toolbar or explicit actions.
   const [activeTool, setActiveTool] = useState<DesignerTool>("select");
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [snapStep, setSnapStep] = useState(1);
@@ -348,7 +327,6 @@ export default function SeatDesignerPage() {
     setSeats(alignSeatsBottomCenter(layoutSts));
     setDraftLoaded(true);
     setMessage("Loaded layout draft from the seat builder.");
-    requestAnimationFrame(() => requestAnimationFrame(() => fitToView()));
   }, [fitToView, alignSeatsBottomCenter]);
 
   const loadExistingSeats = useCallback(async () => {
@@ -373,7 +351,6 @@ export default function SeatDesignerPage() {
       handleSeatsChange(alignSeatsBottomCenter(layout));
       setHasSubmitted(true); // this mirrors server state
       setMessage(`Loaded ${layout.length} existing seats for this section.`);
-      requestAnimationFrame(() => requestAnimationFrame(() => fitToView()));
     } catch {
       setError("Could not load existing seats for this section.");
     } finally {

@@ -65,16 +65,20 @@ export function SeatDesignerToolbar({
   onFitToView,
   className,
 }: SeatDesignerToolbarProps) {
-  function zoomBy(factor: number) {
+  function zoomBy(_factor: number) {
+    // Lock to 110% as requested.
     onViewportChange((v) => ({
       ...v,
-      zoom: Math.min(6, Math.max(0.15, v.zoom * factor)),
+      zoom: 1.1,
     }));
   }
 
   function handleFit() {
-    if (onFitToView) onFitToView();
-    else onViewportChange({ panX: -5, panY: -5, zoom: 1 });
+    if (onFitToView) {
+      onFitToView();
+    } else {
+      onViewportChange((v) => ({ ...v, zoom: 1.1 }));
+    }
   }
 
   return (
