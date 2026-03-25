@@ -191,9 +191,6 @@ export function SeatViewerCanvas({
   }, [fitToView, seats.length, designerBounds]);
 
   /* ---- Render ---- */
-  const gw = bounds.maxX - bounds.minX + 40;
-  const gh = bounds.maxY - bounds.minY + 60;
-
   return (
     <div className={cn("relative h-[500px] w-full overflow-hidden rounded-xl border border-zinc-200 bg-[#f6f7f9] dark:border-zinc-700 dark:bg-[#111214]", className)}>
       {/* HUD overlay */}
@@ -292,10 +289,21 @@ export function SeatViewerCanvas({
             const rot = Number(seat.rotation) || 0;
             const shape = seat.shape || "rect";
             const isActive = seat.status === "active" || seat.is_active !== false;
+            const tierColor =
+              typeof seat.price_tier?.color === "string" &&
+              seat.price_tier.color.trim() !== ""
+                ? seat.price_tier.color
+                : undefined;
 
             const rx = shape === "circle" ? w / 2 : shape === "rounded_rect" ? 0.8 : 0.4;
             const ry = shape === "circle" ? h / 2 : shape === "rounded_rect" ? 0.8 : 0.4;
             const isHovered = hoveredSeat?.id === seat.id;
+            const fill = !isActive
+              ? "#cbd5e1"
+              : isHovered
+                ? tierColor ?? "#60a5fa"
+                : tierColor ?? "#94a3b8";
+            const stroke = isHovered ? "#2563eb" : tierColor ?? "#475569";
 
             return (
               <g
@@ -317,8 +325,9 @@ export function SeatViewerCanvas({
                   height={h}
                   rx={rx}
                   ry={ry}
-                  fill={isActive ? (isHovered ? "#60a5fa" : "#94a3b8") : "#cbd5e1"}
-                  stroke={isHovered ? "#2563eb" : "#475569"}
+                  fill={fill}
+                  fillOpacity={tierColor && isActive ? 0.85 : 1}
+                  stroke={stroke}
                   strokeWidth={isHovered ? 1 : 0.5}
                   filter={isHovered ? "url(#viewer-glow)" : undefined}
                 />
@@ -349,6 +358,14 @@ export function SeatViewerCanvas({
             {hoveredSeat.col_label || String(hoveredSeat.number || "")}
           </span>
           {hoveredSeat.label && <span className="ml-1 opacity-70">({String(hoveredSeat.label)})</span>}
+          {hoveredSeat.price_tier && (
+            <span className="ml-2 opacity-80">
+              · {hoveredSeat.price_tier.name}{" "}
+              {typeof hoveredSeat.price_tier.price === "number"
+                ? hoveredSeat.price_tier.price.toFixed(2)
+                : String(hoveredSeat.price_tier.price)}
+            </span>
+          )}
         </div>
       )}
     </div>
