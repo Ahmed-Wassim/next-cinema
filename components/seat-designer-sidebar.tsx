@@ -164,7 +164,9 @@ export function SeatDesignerSidebar({
     if (!assignTierId || selectedKeys.size === 0) return;
     onSeatsChange(
       seats.map((s) =>
-        selectedKeys.has(s.layoutKey) ? { ...s, price_tier_id: assignTierId } : s,
+        selectedKeys.has(s.layoutKey)
+          ? { ...s, price_tier_id: assignTierId }
+          : s,
       ),
     );
   }
@@ -189,7 +191,8 @@ export function SeatDesignerSidebar({
 
   function applyCurve() {
     if (selectedKeys.size < 2) return;
-    const bulge = bowToward === "screen" ? Math.abs(rowBulge) : -Math.abs(rowBulge);
+    const bulge =
+      bowToward === "screen" ? Math.abs(rowBulge) : -Math.abs(rowBulge);
     onSeatsChange(
       curveSelectedSeatsAlongRow(seats, selectedKeys, {
         bulge,
@@ -204,8 +207,8 @@ export function SeatDesignerSidebar({
     rowLabel: "A",
     startX: 10,
     startY: 10,
-    gapX: 4,   // gap between seats horizontally
-    gapY: 4,   // gap between rows vertically
+    gapX: 4, // gap between seats horizontally
+    gapY: 4, // gap between rows vertically
     priceTierId: null as number | null,
   });
 
@@ -219,7 +222,7 @@ export function SeatDesignerSidebar({
   function distributeSelected(axis: "x" | "y") {
     if (selectedKeys.size < 2) return;
     const sel = seats.filter((s) => selectedKeys.has(s.layoutKey));
-    
+
     if (axis === "x") {
       sel.sort((a, b) => a.pos_x - b.pos_x);
       let currentX = sel[0].pos_x;
@@ -383,20 +386,24 @@ export function SeatDesignerSidebar({
             type="button"
             className={cn(
               "absolute left-[calc(50%-12px)] top-[26px] z-10 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-colors",
-              lockSquare 
-                ? "bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900" 
-                : "bg-white border-zinc-200 text-zinc-400 hover:text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700"
+              lockSquare
+                ? "bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900"
+                : "bg-white border-zinc-200 text-zinc-400 hover:text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700",
             )}
             onClick={() => {
               setLockSquare(!lockSquare);
               if (!lockSquare) {
                 // When locking, immediately make it square
-                onSeatDefaultsChange(d => ({ ...d, height: d.width }));
+                onSeatDefaultsChange((d) => ({ ...d, height: d.width }));
               }
             }}
             title={lockSquare ? "Unlock aspect ratio" : "Lock square"}
           >
-            {lockSquare ? <Link2 className="h-3 w-3" /> : <Link2Off className="h-3 w-3" />}
+            {lockSquare ? (
+              <Link2 className="h-3 w-3" />
+            ) : (
+              <Link2Off className="h-3 w-3" />
+            )}
           </button>
           <div className="space-y-1">
             <Label className="text-xs">Width</Label>
@@ -408,7 +415,11 @@ export function SeatDesignerSidebar({
               onChange={(e) =>
                 onSeatDefaultsChange((d) => {
                   const val = Math.max(1, Number(e.target.value) || 1);
-                  return { ...d, width: val, height: lockSquare ? val : d.height };
+                  return {
+                    ...d,
+                    width: val,
+                    height: lockSquare ? val : d.height,
+                  };
                 })
               }
             />
@@ -424,7 +435,11 @@ export function SeatDesignerSidebar({
               onChange={(e) =>
                 onSeatDefaultsChange((d) => {
                   const val = Math.max(1, Number(e.target.value) || 1);
-                  return { ...d, height: val, width: lockSquare ? val : d.width };
+                  return {
+                    ...d,
+                    height: val,
+                    width: lockSquare ? val : d.width,
+                  };
                 })
               }
             />
@@ -433,7 +448,9 @@ export function SeatDesignerSidebar({
             <Label className="text-xs">Shape</Label>
             <Select
               value={seatDefaults.shape}
-              onValueChange={(v) => onSeatDefaultsChange((d) => ({ ...d, shape: v }))}
+              onValueChange={(v) =>
+                onSeatDefaultsChange((d) => ({ ...d, shape: v }))
+              }
             >
               <SelectTrigger className="h-7 text-xs">
                 <SelectValue />
@@ -453,7 +470,10 @@ export function SeatDesignerSidebar({
               className="h-7 text-xs"
               value={seatDefaults.rotation}
               onChange={(e) =>
-                onSeatDefaultsChange((d) => ({ ...d, rotation: Number(e.target.value) || 0 }))
+                onSeatDefaultsChange((d) => ({
+                  ...d,
+                  rotation: Number(e.target.value) || 0,
+                }))
               }
             />
           </div>
@@ -497,7 +517,8 @@ export function SeatDesignerSidebar({
       {activeTool === "row" && (
         <Section title="Generate row" icon={Rows3}>
           <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Generate a straight row. Then select it and use the Curve tool to arc it.
+            Generate a straight row. Then select it and use the Curve tool to
+            arc it.
           </p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
@@ -507,7 +528,12 @@ export function SeatDesignerSidebar({
                 min={1}
                 className="h-7 text-xs"
                 value={rowGen.seatCount}
-                onChange={(e) => setRowGen((r) => ({ ...r, seatCount: Number(e.target.value) || 1 }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({
+                    ...r,
+                    seatCount: Number(e.target.value) || 1,
+                  }))
+                }
               />
             </div>
             <div className="space-y-1">
@@ -516,7 +542,9 @@ export function SeatDesignerSidebar({
                 className="h-7 text-xs"
                 maxLength={2}
                 value={rowGen.rowLabel}
-                onChange={(e) => setRowGen((r) => ({ ...r, rowLabel: e.target.value || "A" }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({ ...r, rowLabel: e.target.value || "A" }))
+                }
               />
             </div>
             <div className="space-y-1">
@@ -526,7 +554,9 @@ export function SeatDesignerSidebar({
                 step={1}
                 className="h-7 text-xs"
                 value={rowGen.startX}
-                onChange={(e) => setRowGen((r) => ({ ...r, startX: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({ ...r, startX: Number(e.target.value) }))
+                }
               />
             </div>
             <div className="space-y-1">
@@ -536,7 +566,9 @@ export function SeatDesignerSidebar({
                 step={1}
                 className="h-7 text-xs"
                 value={rowGen.startY}
-                onChange={(e) => setRowGen((r) => ({ ...r, startY: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({ ...r, startY: Number(e.target.value) }))
+                }
               />
             </div>
             <div className="space-y-1">
@@ -547,7 +579,12 @@ export function SeatDesignerSidebar({
                 step={0.5}
                 className="h-7 text-xs"
                 value={rowGen.gapX}
-                onChange={(e) => setRowGen((r) => ({ ...r, gapX: Math.max(0, Number(e.target.value) ?? 1) }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({
+                    ...r,
+                    gapX: Math.max(0, Number(e.target.value) ?? 1),
+                  }))
+                }
               />
             </div>
             <div className="space-y-1">
@@ -558,15 +595,25 @@ export function SeatDesignerSidebar({
                 step={0.5}
                 className="h-7 text-xs"
                 value={rowGen.gapY}
-                onChange={(e) => setRowGen((r) => ({ ...r, gapY: Math.max(0, Number(e.target.value) ?? 1) }))}
+                onChange={(e) =>
+                  setRowGen((r) => ({
+                    ...r,
+                    gapY: Math.max(0, Number(e.target.value) ?? 1),
+                  }))
+                }
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Tier</Label>
               <Select
-                value={rowGen.priceTierId ? String(rowGen.priceTierId) : "default"}
+                value={
+                  rowGen.priceTierId ? String(rowGen.priceTierId) : "default"
+                }
                 onValueChange={(v) =>
-                  setRowGen((r) => ({ ...r, priceTierId: v === "default" ? null : Number(v) }))
+                  setRowGen((r) => ({
+                    ...r,
+                    priceTierId: v === "default" ? null : Number(v),
+                  }))
                 }
               >
                 <SelectTrigger className="h-7 text-xs">
@@ -605,7 +652,9 @@ export function SeatDesignerSidebar({
             size="sm"
             className="h-7 text-xs"
             disabled={!seats.length}
-            onClick={() => onSelectionChange(new Set(seats.map((s) => s.layoutKey)))}
+            onClick={() =>
+              onSelectionChange(new Set(seats.map((s) => s.layoutKey)))
+            }
           >
             All
           </Button>
@@ -648,7 +697,13 @@ export function SeatDesignerSidebar({
                   maxLength={10}
                   onChange={(e) => {
                     const val = e.target.value;
-                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, row: val } : s));
+                    onSeatsChange(
+                      seats.map((s) =>
+                        s.layoutKey === selectedSeats[0]!.layoutKey
+                          ? { ...s, row: val }
+                          : s,
+                      ),
+                    );
                   }}
                 />
               </div>
@@ -660,19 +715,33 @@ export function SeatDesignerSidebar({
                   maxLength={10}
                   onChange={(e) => {
                     const val = e.target.value;
-                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, number: val } : s));
+                    onSeatsChange(
+                      seats.map((s) =>
+                        s.layoutKey === selectedSeats[0]!.layoutKey
+                          ? { ...s, number: val }
+                          : s,
+                      ),
+                    );
                   }}
                 />
               </div>
               <div className="col-span-2 space-y-1">
-                <Label className="text-[10px] text-zinc-500">Custom Label (Optional)</Label>
+                <Label className="text-[10px] text-zinc-500">
+                  Custom Label (Optional)
+                </Label>
                 <Input
                   className="h-7 px-2 text-xs"
                   value={selectedSeats[0].label || ""}
                   placeholder="e.g. VIP, Wheelchair..."
                   onChange={(e) => {
                     const val = e.target.value;
-                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, label: val } : s));
+                    onSeatsChange(
+                      seats.map((s) =>
+                        s.layoutKey === selectedSeats[0]!.layoutKey
+                          ? { ...s, label: val }
+                          : s,
+                      ),
+                    );
                   }}
                 />
               </div>
@@ -685,7 +754,14 @@ export function SeatDesignerSidebar({
                   value={selectedSeats[0].pos_x}
                   onChange={(e) => {
                     const val = Number(e.target.value);
-                    if (!isNaN(val)) onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, pos_x: val } : s));
+                    if (!isNaN(val))
+                      onSeatsChange(
+                        seats.map((s) =>
+                          s.layoutKey === selectedSeats[0]!.layoutKey
+                            ? { ...s, pos_x: val }
+                            : s,
+                        ),
+                      );
                   }}
                 />
               </div>
@@ -698,7 +774,14 @@ export function SeatDesignerSidebar({
                   value={selectedSeats[0].pos_y}
                   onChange={(e) => {
                     const val = Number(e.target.value);
-                    if (!isNaN(val)) onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, pos_y: val } : s));
+                    if (!isNaN(val))
+                      onSeatsChange(
+                        seats.map((s) =>
+                          s.layoutKey === selectedSeats[0]!.layoutKey
+                            ? { ...s, pos_y: val }
+                            : s,
+                        ),
+                      );
                   }}
                 />
               </div>
@@ -710,10 +793,19 @@ export function SeatDesignerSidebar({
                   checked={selectedSeats[0].is_active}
                   onChange={(e) => {
                     const is_active = e.target.checked;
-                    onSeatsChange(seats.map(s => s.layoutKey === selectedSeats[0]!.layoutKey ? { ...s, is_active } : s));
+                    onSeatsChange(
+                      seats.map((s) =>
+                        s.layoutKey === selectedSeats[0]!.layoutKey
+                          ? { ...s, is_active }
+                          : s,
+                      ),
+                    );
                   }}
                 />
-                <Label htmlFor="seat-active-toggle" className="text-xs font-medium cursor-pointer">
+                <Label
+                  htmlFor="seat-active-toggle"
+                  className="text-xs font-medium cursor-pointer"
+                >
                   Available for booking
                 </Label>
               </div>
@@ -830,7 +922,9 @@ export function SeatDesignerSidebar({
         {/* Resize selected seats */}
         {selectedCount > 0 && (
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Resize selected ({selectedCount})</Label>
+            <Label className="text-xs font-medium">
+              Resize selected ({selectedCount})
+            </Label>
             <div className="grid grid-cols-3 gap-1.5">
               <div className="space-y-0.5">
                 <Label className="text-[10px] text-zinc-400">Width</Label>
@@ -843,7 +937,15 @@ export function SeatDesignerSidebar({
                   onChange={(e) => {
                     const w = Math.max(1, Number(e.target.value) || 1);
                     onSeatsChange(
-                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, width: w, height: lockSquare ? w : s.height } : s)),
+                      seats.map((s) =>
+                        selectedKeys.has(s.layoutKey)
+                          ? {
+                              ...s,
+                              width: w,
+                              height: lockSquare ? w : s.height,
+                            }
+                          : s,
+                      ),
                     );
                   }}
                 />
@@ -860,7 +962,11 @@ export function SeatDesignerSidebar({
                   onChange={(e) => {
                     const h = Math.max(1, Number(e.target.value) || 1);
                     onSeatsChange(
-                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, height: h, width: lockSquare ? h : s.width } : s)),
+                      seats.map((s) =>
+                        selectedKeys.has(s.layoutKey)
+                          ? { ...s, height: h, width: lockSquare ? h : s.width }
+                          : s,
+                      ),
                     );
                   }}
                 />
@@ -871,7 +977,9 @@ export function SeatDesignerSidebar({
                   value={selectedSeats[0]?.shape ?? seatDefaults.shape}
                   onValueChange={(v) => {
                     onSeatsChange(
-                      seats.map((s) => (selectedKeys.has(s.layoutKey) ? { ...s, shape: v } : s)),
+                      seats.map((s) =>
+                        selectedKeys.has(s.layoutKey) ? { ...s, shape: v } : s,
+                      ),
                     );
                   }}
                 >
@@ -895,33 +1003,53 @@ export function SeatDesignerSidebar({
             <Label className="text-xs font-medium">Distribute spacing</Label>
             <div className="flex items-center gap-2">
               <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
-                <span className="text-[10px] text-zinc-500 font-medium">X Gap</span>
+                <span className="text-[10px] text-zinc-500 font-medium">
+                  X Gap
+                </span>
                 <input
                   type="number"
                   min={0}
                   step={0.5}
                   className="w-full bg-transparent text-xs outline-none"
                   value={distGapX}
-                  onChange={(e) => setDistGapX(Math.max(0, Number(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setDistGapX(Math.max(0, Number(e.target.value) || 0))
+                  }
                 />
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => distributeSelected("x")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => distributeSelected("x")}
+              >
                 <AlignHorizontalSpaceAround className="h-3 w-3" /> Set X
               </Button>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
-                <span className="text-[10px] text-zinc-500 font-medium">Y Gap</span>
+                <span className="text-[10px] text-zinc-500 font-medium">
+                  Y Gap
+                </span>
                 <input
                   type="number"
                   min={0}
                   step={0.5}
                   className="w-full bg-transparent text-xs outline-none"
                   value={distGapY}
-                  onChange={(e) => setDistGapY(Math.max(0, Number(e.target.value) || 0))}
+                  onChange={(e) =>
+                    setDistGapY(Math.max(0, Number(e.target.value) || 0))
+                  }
                 />
               </div>
-              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => distributeSelected("y")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => distributeSelected("y")}
+              >
                 <AlignVerticalSpaceAround className="h-3 w-3" /> Set Y
               </Button>
             </div>
@@ -943,12 +1071,17 @@ export function SeatDesignerSidebar({
               min={0}
               className="h-7 text-xs"
               value={rowBulge}
-              onChange={(e) => setRowBulge(Math.max(0, Number(e.target.value) || 0))}
+              onChange={(e) =>
+                setRowBulge(Math.max(0, Number(e.target.value) || 0))
+              }
             />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Direction</Label>
-            <Select value={bowToward} onValueChange={(v) => setBowToward(v as "screen" | "audience")}>
+            <Select
+              value={bowToward}
+              onValueChange={(v) => setBowToward(v as "screen" | "audience")}
+            >
               <SelectTrigger className="h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>

@@ -23,8 +23,8 @@ import type {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const MIN_ZOOM = 0.15;
-const MAX_ZOOM = 6;
+const MIN_ZOOM = 0.153;
+const MAX_ZOOM = 63;
 const DRAG_THRESHOLD = 4;
 const GRID_STEP = 5;
 const LONG_PRESS_MS = 350; // ms before long-press triggers panning mode
@@ -198,17 +198,14 @@ export function SeatDesignerCanvas({
   /*  Long-press → pan helper                                          */
   /* ================================================================ */
 
-  const startPanning = useCallback(
-    (startClient: { x: number; y: number }) => {
-      gestureRef.current = {
-        type: "panning",
-        startClient,
-        startPan: { x: vpRef.current.panX, y: vpRef.current.panY },
-      };
-      setIsPanning(true);
-    },
-    [],
-  );
+  const startPanning = useCallback((startClient: { x: number; y: number }) => {
+    gestureRef.current = {
+      type: "panning",
+      startClient,
+      startPan: { x: vpRef.current.panX, y: vpRef.current.panY },
+    };
+    setIsPanning(true);
+  }, []);
 
   /* ================================================================ */
   /*  POINTER HANDLERS                                                 */
@@ -231,7 +228,12 @@ export function SeatDesignerCanvas({
       let hit: LayoutSeat | undefined;
       for (let i = seatsRef.current.length - 1; i >= 0; i--) {
         const s = seatsRef.current[i]!;
-        if (pt.x >= s.pos_x && pt.x <= s.pos_x + s.width && pt.y >= s.pos_y && pt.y <= s.pos_y + s.height) {
+        if (
+          pt.x >= s.pos_x &&
+          pt.x <= s.pos_x + s.width &&
+          pt.y >= s.pos_y &&
+          pt.y <= s.pos_y + s.height
+        ) {
           hit = s;
           break;
         }
@@ -291,7 +293,10 @@ export function SeatDesignerCanvas({
 
       /* ---- Threshold check for pending click ---- */
       if (g.type === "pending-click") {
-        const dist = Math.hypot(e.clientX - g.startClient.x, e.clientY - g.startClient.y);
+        const dist = Math.hypot(
+          e.clientX - g.startClient.x,
+          e.clientY - g.startClient.y,
+        );
         if (dist < DRAG_THRESHOLD) return;
 
         // Cancel long-press timer since user started moving
@@ -311,7 +316,11 @@ export function SeatDesignerCanvas({
               origins.set(s.layoutKey, { x: s.pos_x, y: s.pos_y });
             }
           }
-          gestureRef.current = { type: "dragging-seats", startSvg: g.startSvg, origins };
+          gestureRef.current = {
+            type: "dragging-seats",
+            startSvg: g.startSvg,
+            origins,
+          };
           setIsDragging(true);
           return;
         }
@@ -320,7 +329,12 @@ export function SeatDesignerCanvas({
         if (g.target === "canvas") {
           if (toolRef.current === "select") {
             gestureRef.current = { type: "marquee", startSvg: g.startSvg };
-            setMarquee({ x1: g.startSvg.x, y1: g.startSvg.y, x2: g.startSvg.x, y2: g.startSvg.y });
+            setMarquee({
+              x1: g.startSvg.x,
+              y1: g.startSvg.y,
+              x2: g.startSvg.x,
+              y2: g.startSvg.y,
+            });
           } else {
             // Non-select tool: dragging on empty canvas = pan immediately
             startPanning(g.startClient);
@@ -338,7 +352,11 @@ export function SeatDesignerCanvas({
           seatsRef.current.map((s) => {
             const origin = g.origins.get(s.layoutKey);
             if (!origin) return s;
-            return clampSeatToBounds({ ...s, pos_x: origin.x + dx, pos_y: origin.y + dy });
+            return clampSeatToBounds({
+              ...s,
+              pos_x: origin.x + dx,
+              pos_y: origin.y + dy,
+            });
           }),
         );
         return;
@@ -347,7 +365,11 @@ export function SeatDesignerCanvas({
       /* ---- Marquee ---- */
       if (g.type === "marquee") {
         const pt = clientToSvg(e, svgRef.current, vpRef.current);
-        setMarquee((m) => (m ? { ...m, x2: pt.x, y2: pt.y } : { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y }));
+        setMarquee((m) =>
+          m
+            ? { ...m, x2: pt.x, y2: pt.y }
+            : { x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y },
+        );
         return;
       }
 
@@ -357,7 +379,12 @@ export function SeatDesignerCanvas({
         let found: string | null = null;
         for (let i = seatsRef.current.length - 1; i >= 0; i--) {
           const s = seatsRef.current[i]!;
-          if (pt.x >= s.pos_x && pt.x <= s.pos_x + s.width && pt.y >= s.pos_y && pt.y <= s.pos_y + s.height) {
+          if (
+            pt.x >= s.pos_x &&
+            pt.x <= s.pos_x + s.width &&
+            pt.y >= s.pos_y &&
+            pt.y <= s.pos_y + s.height
+          ) {
             found = s.layoutKey;
             break;
           }
@@ -430,7 +457,9 @@ export function SeatDesignerCanvas({
         if (tool === "tier-paint" && g.target === "seat" && g.seatKey) {
           onSeatsChange(
             seatsRef.current.map((s) =>
-              s.layoutKey === g.seatKey ? { ...s, price_tier_id: paintTierId } : s,
+              s.layoutKey === g.seatKey
+                ? { ...s, price_tier_id: paintTierId }
+                : s,
             ),
           );
           return;
@@ -485,9 +514,18 @@ export function SeatDesignerCanvas({
       }
     },
     [
-      onSeatsChange, onSelectionChange, snap, paintTierId,
-      hallId, sectionId, defaultTierId, nextRowLabel, nextSeatNumber,
-      seatDefaults, onSeatPlaced, marquee,
+      onSeatsChange,
+      onSelectionChange,
+      snap,
+      paintTierId,
+      hallId,
+      sectionId,
+      defaultTierId,
+      nextRowLabel,
+      nextSeatNumber,
+      seatDefaults,
+      onSeatPlaced,
+      marquee,
     ],
   );
 
@@ -507,7 +545,11 @@ export function SeatDesignerCanvas({
         const nextZoom = clamp(vp.zoom * factor, MIN_ZOOM, MAX_ZOOM);
         const worldX = cx / vp.zoom + vp.panX;
         const worldY = cy / vp.zoom + vp.panY;
-        return { zoom: nextZoom, panX: worldX - cx / nextZoom, panY: worldY - cy / nextZoom };
+        return {
+          zoom: nextZoom,
+          panX: worldX - cx / nextZoom,
+          panY: worldY - cy / nextZoom,
+        };
       });
     };
     svg.addEventListener("wheel", handler, { passive: false });
@@ -517,13 +559,20 @@ export function SeatDesignerCanvas({
   /* ---- Keyboard shortcuts ---- */
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
+      const inInput =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement;
       if (e.key === "Escape") {
         onSelectionChange(new Set());
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !inInput) {
         if (selectedRef.current.size > 0) {
-          onSeatsChange(seatsRef.current.filter((s) => !selectedRef.current.has(s.layoutKey)));
+          onSeatsChange(
+            seatsRef.current.filter(
+              (s) => !selectedRef.current.has(s.layoutKey),
+            ),
+          );
           onSelectionChange(new Set());
         }
       }
@@ -571,7 +620,12 @@ export function SeatDesignerCanvas({
       >
         <defs>
           {/* Minor grid */}
-          <pattern id={gridPatternId} width={GRID_STEP} height={GRID_STEP} patternUnits="userSpaceOnUse">
+          <pattern
+            id={gridPatternId}
+            width={GRID_STEP}
+            height={GRID_STEP}
+            patternUnits="userSpaceOnUse"
+          >
             <path
               d={`M ${GRID_STEP} 0 L 0 0 0 ${GRID_STEP}`}
               fill="none"
@@ -580,8 +634,17 @@ export function SeatDesignerCanvas({
             />
           </pattern>
           {/* Major grid */}
-          <pattern id={gridMajorId} width={GRID_STEP * 4} height={GRID_STEP * 4} patternUnits="userSpaceOnUse">
-            <rect width={GRID_STEP * 4} height={GRID_STEP * 4} fill={`url(#${gridPatternId})`} />
+          <pattern
+            id={gridMajorId}
+            width={GRID_STEP * 4}
+            height={GRID_STEP * 4}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect
+              width={GRID_STEP * 4}
+              height={GRID_STEP * 4}
+              fill={`url(#${gridPatternId})`}
+            />
             <path
               d={`M ${GRID_STEP * 4} 0 L 0 0 0 ${GRID_STEP * 4}`}
               fill="none"
@@ -601,7 +664,12 @@ export function SeatDesignerCanvas({
           </filter>
           {/* Shadow for hover */}
           <filter id="seat-hover" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="0.3" stdDeviation="0.6" floodColor="rgba(0,0,0,0.15)" />
+            <feDropShadow
+              dx="0"
+              dy="0.3"
+              stdDeviation="0.6"
+              floodColor="rgba(0,0,0,0.15)"
+            />
           </filter>
         </defs>
 
@@ -610,7 +678,13 @@ export function SeatDesignerCanvas({
           style={{ willChange: "transform" }}
         >
           {/* Grid background */}
-          <rect x={bounds.minX - 100} y={bounds.minY - 100} width={gw + 200} height={gh + 200} fill={`url(#${gridMajorId})`} />
+          <rect
+            x={bounds.minX - 100}
+            y={bounds.minY - 100}
+            width={gw + 200}
+            height={gh + 200}
+            fill={`url(#${gridMajorId})`}
+          />
 
           {/* Designer working area boundary */}
           <rect
@@ -651,7 +725,10 @@ export function SeatDesignerCanvas({
             fontSize={4.2}
             fontWeight={700}
             fill="rgba(217,119,6,0.6)"
-            style={{ letterSpacing: "0.2em", fontFamily: "system-ui, sans-serif" }}
+            style={{
+              letterSpacing: "0.2em",
+              fontFamily: "system-ui, sans-serif",
+            }}
           >
             SCREEN
           </text>
@@ -670,14 +747,30 @@ export function SeatDesignerCanvas({
               ? "#2563eb"
               : hovered
                 ? "#3b82f6"
-                : tint ?? "rgba(63,63,70,0.45)";
+                : (tint ?? "rgba(63,63,70,0.45)");
             const strokeW = selected ? 0.5 : hovered ? 0.4 : 0.25;
-            const rx = s.shape === "circle" ? s.width / 2 : s.shape === "rounded_rect" ? 0.8 : 0.4;
-            const ry = s.shape === "circle" ? s.height / 2 : s.shape === "rounded_rect" ? 0.8 : 0.4;
+            const rx =
+              s.shape === "circle"
+                ? s.width / 2
+                : s.shape === "rounded_rect"
+                  ? 0.8
+                  : 0.4;
+            const ry =
+              s.shape === "circle"
+                ? s.height / 2
+                : s.shape === "rounded_rect"
+                  ? 0.8
+                  : 0.4;
             const cx = s.pos_x + s.width / 2;
             const cy = s.pos_y + s.height / 2;
-            const rot = s.rotation ? `rotate(${s.rotation} ${cx} ${cy})` : undefined;
-            const filter = selected ? "url(#seat-glow)" : hovered ? "url(#seat-hover)" : undefined;
+            const rot = s.rotation
+              ? `rotate(${s.rotation} ${cx} ${cy})`
+              : undefined;
+            const filter = selected
+              ? "url(#seat-glow)"
+              : hovered
+                ? "url(#seat-hover)"
+                : undefined;
 
             return (
               <g key={s.layoutKey} style={{ transition: "opacity 80ms ease" }}>
@@ -706,12 +799,19 @@ export function SeatDesignerCanvas({
                     dominantBaseline="central"
                     fontSize={clamp(Math.min(s.width, s.height) * 0.45, 1, 3)}
                     fontWeight={selected ? 700 : 600}
-                    fill={selected ? "#1d4ed8" : hovered ? "#1e3a5f" : "#27272a"}
+                    fill={
+                      selected ? "#1d4ed8" : hovered ? "#1e3a5f" : "#27272a"
+                    }
                     opacity={viewport.zoom > 0.8 ? 1 : 0.7}
                     transform={rot}
-                    style={{ pointerEvents: "none", userSelect: "none", fontFamily: "system-ui, sans-serif" }}
+                    style={{
+                      pointerEvents: "none",
+                      userSelect: "none",
+                      fontFamily: "system-ui, sans-serif",
+                    }}
                   >
-                    {s.row}{s.number}
+                    {s.row}
+                    {s.number}
                   </text>
                 )}
                 {/* Selection ring */}
@@ -781,7 +881,15 @@ export function SeatDesignerCanvas({
 
       <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2">
         <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-medium capitalize text-white/80 backdrop-blur-md">
-          {activeTool === "tier-paint" ? "🎨 Tier Paint" : activeTool === "place" ? "➕ Place" : activeTool === "row" ? "📐 Add Row" : activeTool === "pan" ? "🖐️ Pan" : "🔍 Select"}
+          {activeTool === "tier-paint"
+            ? "🎨 Tier Paint"
+            : activeTool === "place"
+              ? "➕ Place"
+              : activeTool === "row"
+                ? "📐 Add Row"
+                : activeTool === "pan"
+                  ? "🖐️ Pan"
+                  : "🔍 Select"}
         </div>
       </div>
 

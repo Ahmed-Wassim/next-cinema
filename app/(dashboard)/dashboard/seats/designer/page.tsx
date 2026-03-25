@@ -29,26 +29,43 @@ import type {
   SeatDefaults,
 } from "@/types/designer-types";
 
-function seatApiToBulkSeatItem(seat: Seat, ctx: { hallId: number; sectionId: number; fallbackTierId: number }): BulkSeatItem & { id?: number } {
+function seatApiToBulkSeatItem(
+  seat: Seat,
+  ctx: { hallId: number; sectionId: number; fallbackTierId: number },
+): BulkSeatItem & { id?: number } {
   const s = seat as Record<string, unknown>;
   return {
     id: typeof s.id === "number" ? s.id : undefined,
     hall_id: ctx.hallId,
     section_id: ctx.sectionId,
-    price_tier_id: (typeof s.price_tier_id === "number" ? (s.price_tier_id as number) : ctx.fallbackTierId) as number,
-    row: (typeof s.row === "string" ? (s.row as string) : (typeof s.row_label === "string" ? (s.row_label as string) : "?")) as string,
-    number: (typeof s.number === "string" ? (s.number as string) : (typeof s.col_label === "string" ? (s.col_label as string) : "1")) as string,
+    price_tier_id: (typeof s.price_tier_id === "number"
+      ? (s.price_tier_id as number)
+      : ctx.fallbackTierId) as number,
+    row: (typeof s.row === "string"
+      ? (s.row as string)
+      : typeof s.row_label === "string"
+        ? (s.row_label as string)
+        : "?") as string,
+    number: (typeof s.number === "string"
+      ? (s.number as string)
+      : typeof s.col_label === "string"
+        ? (s.col_label as string)
+        : "1") as string,
     pos_x: Number(s.pos_x) || 0,
     pos_y: Number(s.pos_y) || 0,
     rotation: Number(s.rotation) || 0,
     width: Math.max(1, Number(s.width) || 15),
     height: Math.max(1, Number(s.height) || 15),
-    shape: (typeof s.shape === "string" ? (s.shape as string) : "rect") as string,
+    shape: (typeof s.shape === "string"
+      ? (s.shape as string)
+      : "rect") as string,
     sort_order: Number(s.sort_order) || 1,
     is_active:
       typeof s.is_active === "boolean"
         ? (s.is_active as boolean)
-        : (typeof s.status === "string" ? String(s.status) === "active" : true),
+        : typeof s.status === "string"
+          ? String(s.status) === "active"
+          : true,
   };
 }
 
@@ -93,7 +110,9 @@ export default function SeatDesignerPage() {
         const maxY = designerBounds.y + designerBounds.height - s.height;
         const x = Math.min(maxX, Math.max(minX, s.pos_x));
         const y = Math.min(maxY, Math.max(minY, s.pos_y));
-        return x === s.pos_x && y === s.pos_y ? s : { ...s, pos_x: x, pos_y: y };
+        return x === s.pos_x && y === s.pos_y
+          ? s
+          : { ...s, pos_x: x, pos_y: y };
       });
     },
     [designerBounds],
@@ -147,16 +166,17 @@ export default function SeatDesignerPage() {
 
   const handleSeatsChange = useCallback(
     (nextSeats: LayoutSeat[] | ((prev: LayoutSeat[]) => LayoutSeat[])) => {
-    setSeats((prev) => {
-      const rawNext = typeof nextSeats === "function" ? nextSeats(prev) : nextSeats;
-      const next = clampSeatsToBounds(rawNext);
-      if (next !== prev) {
-         setPast((p) => [...p, prev]);
-         setFuture([]);
-         setHasSubmitted(false);
-      }
-      return next;
-    });
+      setSeats((prev) => {
+        const rawNext =
+          typeof nextSeats === "function" ? nextSeats(prev) : nextSeats;
+        const next = clampSeatsToBounds(rawNext);
+        if (next !== prev) {
+          setPast((p) => [...p, prev]);
+          setFuture([]);
+          setHasSubmitted(false);
+        }
+        return next;
+      });
     },
     [clampSeatsToBounds],
   );
@@ -184,7 +204,11 @@ export default function SeatDesignerPage() {
   // Global Undo/Redo shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
           e.preventDefault();
@@ -333,10 +357,17 @@ export default function SeatDesignerPage() {
     setMessage(null);
     setLoadingExisting(true);
     try {
-      const res = await getSeats({ hall_section_id: sectionId, per_page: 1000 });
+      const res = await getSeats({
+        hall_section_id: sectionId,
+        per_page: 1000,
+      });
       const data = extractPaginated<Seat>(res).data;
       const bulk = data.map((s) =>
-        seatApiToBulkSeatItem(s, { hallId, sectionId, fallbackTierId: tierId || 0 }),
+        seatApiToBulkSeatItem(s, {
+          hallId,
+          sectionId,
+          fallbackTierId: tierId || 0,
+        }),
       );
       const layout = withLayoutKeys(bulk);
       handleSeatsChange(alignSeatsBottomCenter(layout));
@@ -348,7 +379,14 @@ export default function SeatDesignerPage() {
     } finally {
       setLoadingExisting(false);
     }
-  }, [sectionId, hallId, tierId, handleSeatsChange, fitToView, alignSeatsBottomCenter]);
+  }, [
+    sectionId,
+    hallId,
+    tierId,
+    handleSeatsChange,
+    fitToView,
+    alignSeatsBottomCenter,
+  ]);
 
   /* ---- Auto-load existing seats (only when empty, and no draft handoff) ---- */
   useEffect(() => {
@@ -446,14 +484,78 @@ export default function SeatDesignerPage() {
     }
     setError(null);
     const draftRows = [
-      { start_pos_x: 100, start_pos_y: 100, step_x: 19, seat_count: 12, row: "A", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 100, start_pos_y: 119, step_x: 19, seat_count: 14, row: "B", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 100, start_pos_y: 138, step_x: 19, seat_count: 16, row: "C", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 100, start_pos_y: 157, step_x: 19, seat_count: 18, row: "D", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 100, start_pos_y: 176, step_x: 19, seat_count: 18, row: "E", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 81, start_pos_y: 215, step_x: 19, seat_count: 20, row: "F", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 81, start_pos_y: 234, step_x: 19, seat_count: 20, row: "G", mirror: false, price_tier_id: tierId },
-      { start_pos_x: 81, start_pos_y: 253, step_x: 19, seat_count: 20, row: "H", mirror: false, price_tier_id: tierId },
+      {
+        start_pos_x: 100,
+        start_pos_y: 100,
+        step_x: 19,
+        seat_count: 12,
+        row: "A",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 100,
+        start_pos_y: 119,
+        step_x: 19,
+        seat_count: 14,
+        row: "B",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 100,
+        start_pos_y: 138,
+        step_x: 19,
+        seat_count: 16,
+        row: "C",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 100,
+        start_pos_y: 157,
+        step_x: 19,
+        seat_count: 18,
+        row: "D",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 100,
+        start_pos_y: 176,
+        step_x: 19,
+        seat_count: 18,
+        row: "E",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 81,
+        start_pos_y: 215,
+        step_x: 19,
+        seat_count: 20,
+        row: "F",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 81,
+        start_pos_y: 234,
+        step_x: 19,
+        seat_count: 20,
+        row: "G",
+        mirror: false,
+        price_tier_id: tierId,
+      },
+      {
+        start_pos_x: 81,
+        start_pos_y: 253,
+        step_x: 19,
+        seat_count: 20,
+        row: "H",
+        mirror: false,
+        price_tier_id: tierId,
+      },
     ];
     const generated = generateBulkSeatsFromCustomRows({
       hall_id: hallId,
@@ -501,11 +603,17 @@ export default function SeatDesignerPage() {
           <Button
             type="button"
             className="gap-1.5"
-            disabled={submitting || !hallId || !sectionId || !tierId || hasSubmitted}
+            disabled={
+              submitting || !hallId || !sectionId || !tierId || hasSubmitted
+            }
             onClick={() => void handleSubmit()}
           >
             <Send className="h-3.5 w-3.5" />
-            {submitting ? "Syncing…" : hasSubmitted ? "Saved!" : "Sync current layout"}
+            {submitting
+              ? "Syncing…"
+              : hasSubmitted
+                ? "Saved!"
+                : "Sync current layout"}
           </Button>
           <Button
             type="button"
