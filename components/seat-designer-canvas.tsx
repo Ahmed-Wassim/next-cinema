@@ -145,15 +145,30 @@ export function SeatDesignerCanvas({
   const svgRef = useRef<SVGSVGElement>(null);
   const gestureRef = useRef<Gesture>({ type: "idle" });
   const seatsRef = useRef(seats);
-  seatsRef.current = seats;
   const selectedRef = useRef(selectedKeys);
-  selectedRef.current = selectedKeys;
   const vpRef = useRef(viewport);
-  vpRef.current = viewport;
   const toolRef = useRef(activeTool);
-  toolRef.current = activeTool;
   const snapRef = useRef({ enabled: snapEnabled, step: snapStep });
-  snapRef.current = { enabled: snapEnabled, step: snapStep };
+
+  useEffect(() => {
+    seatsRef.current = seats;
+  }, [seats]);
+
+  useEffect(() => {
+    selectedRef.current = selectedKeys;
+  }, [selectedKeys]);
+
+  useEffect(() => {
+    vpRef.current = viewport;
+  }, [viewport]);
+
+  useEffect(() => {
+    toolRef.current = activeTool;
+  }, [activeTool]);
+
+  useEffect(() => {
+    snapRef.current = { enabled: snapEnabled, step: snapStep };
+  }, [snapEnabled, snapStep]);
 
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -392,7 +407,7 @@ export function SeatDesignerCanvas({
         setHoveredKey(found);
       }
     },
-    [onSeatsChange, onSelectionChange, onViewportChange, startPanning],
+    [onSeatsChange, onSelectionChange, onViewportChange, startPanning, clampSeatToBounds],
   );
 
   const handlePointerUp = useCallback(
@@ -526,6 +541,7 @@ export function SeatDesignerCanvas({
       seatDefaults,
       onSeatPlaced,
       marquee,
+      clampSeatToBounds,
     ],
   );
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CustomerForm } from "@/components/home/CustomerForm";
 import { createBooking, initiateCheckout } from "@/services/homeService";
 import type { BookingCustomer } from "@/types/home";
-import { Ticket, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface Props {
   showtimeId: number;
@@ -61,8 +61,8 @@ export function CheckoutClient({ showtimeId, seatIds }: Props) {
     <div className="space-y-6">
       {/* Progress indicator */}
       {isLoading && step && (
-        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm text-amber-300">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-5 py-3 text-sm text-[var(--accent)]">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
           {step}
         </div>
       )}

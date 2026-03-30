@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { SeatViewerCanvas } from "@/components/seat-viewer-canvas";
 import type { ShowtimeSeat } from "@/types/home";
 import type { Seat } from "@/types/seat";
@@ -10,12 +11,14 @@ interface SeatMapProps {
   seats: ShowtimeSeat[];
   onSelectionChange: (selected: ShowtimeSeat[]) => void;
   maxSelectable?: number;
+  clearSelectionSignal?: number;
 }
 
 export function SeatMap({
   seats,
   onSelectionChange,
   maxSelectable = 8,
+  clearSelectionSignal,
 }: SeatMapProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -25,14 +28,16 @@ export function SeatMap({
       seats.map((s) => {
         const isSelected = selected.has(s.id);
         const isBooked =
-          s.status === "booked" || s.status === "reserved" || s.status === "inactive";
+          s.status === "booked" ||
+          s.status === "reserved" ||
+          s.status === "inactive";
 
         // Synthesize a price_tier to carry color into the canvas
         const coloredTier = isSelected
-          ? { ...(s.price_tier ?? {}), color: "#f59e0b" } // amber when selected
+          ? { ...(s.price_tier ?? {}), color: "var(--accent)" } // accent when selected
           : isBooked
-            ? { ...(s.price_tier ?? {}), color: "#3f3f46" } // dark zinc when unavailable
-            : s.price_tier ?? null;
+            ? { ...(s.price_tier ?? {}), color: "var(--bg-secondary)" } // secondary bg when unavailable
+            : (s.price_tier ?? null);
 
         return {
           ...s,
@@ -41,8 +46,15 @@ export function SeatMap({
           price_tier: coloredTier as Seat["price_tier"],
         } as Seat;
       }),
-    [seats, selected]
+    [seats, selected],
   );
+
+  // Clear selection when parent triggers due timeout/reload
+  useEffect(() => {
+    if (clearSelectionSignal === undefined) return;
+    setSelected(new Set());
+    onSelectionChange([]);
+  }, [clearSelectionSignal, onSelectionChange]);
 
   function handleSeatClick(canvasSeat: Seat) {
     const original = seats.find((s) => s.id === canvasSeat.id);
@@ -61,7 +73,7 @@ export function SeatMap({
       if (next.size >= maxSelectable) return;
       next.add(original.id);
     }
-    
+
     setSelected(next);
     const selectedSeats = seats.filter((s) => next.has(s.id));
     onSelectionChange(selectedSeats);
@@ -69,9 +81,9 @@ export function SeatMap({
 
   /* ── Legend ── */
   const legend = [
-    { color: "#94a3b8", label: "Available" },
-    { color: "#f59e0b", label: "Selected" },
-    { color: "#3f3f46", label: "Taken" },
+    { color: "var(--text-secondary)", label: "Available" },
+    { color: "var(--accent)", label: "Selected" },
+    { color: "var(--bg-secondary)", label: "Taken" },
   ];
 
   /* ── Price summary ── */
@@ -101,7 +113,7 @@ export function SeatMap({
               className="h-4 w-4 rounded"
               style={{ backgroundColor: l.color }}
             />
-            <span className="text-xs text-zinc-400">{l.label}</span>
+            <span className="text-xs text-[var(--text-secondary)]">{l.label}</span>
           </div>
         ))}
       </div>
@@ -109,19 +121,17 @@ export function SeatMap({
       {/* Selection summary */}
       <div
         className={cn(
-          "flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-3 text-sm transition-all",
-          selected.size > 0
-            ? "border-amber-500/40 bg-zinc-900"
-            : "opacity-60"
+          "flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-5 py-3 text-sm transition-all",
+          selected.size > 0 ? "border-[var(--accent)]/40 bg-[var(--bg-secondary)]" : "opacity-60",
         )}
       >
-        <span className="text-zinc-400">
+        <span className="text-[var(--text-secondary)]">
           {selected.size === 0
             ? "Select your seats above"
             : `${selected.size} seat${selected.size > 1 ? "s" : ""} selected`}
         </span>
         {selected.size > 0 && totalPrice > 0 && (
-          <span className="font-semibold text-amber-400">
+          <span className="font-semibold text-[var(--accent)]">
             {currency} {totalPrice.toFixed(2)}
           </span>
         )}

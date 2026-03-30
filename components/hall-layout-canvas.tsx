@@ -69,7 +69,10 @@ export function HallLayoutCanvas({
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
   const seatsRef = useRef(seats);
-  seatsRef.current = seats;
+
+  useEffect(() => {
+    seatsRef.current = seats;
+  }, [seats]);
 
   const snap = useCallback(
     (v: number) => {

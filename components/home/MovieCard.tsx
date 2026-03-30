@@ -14,7 +14,12 @@ export function MovieCard({ movie }: MovieCardProps) {
   return (
     <Link
       href={`/movies/${movie.id}`}
-      className="group relative block overflow-hidden rounded-2xl bg-zinc-900 shadow-lg transition-transform duration-300 hover:scale-[1.03] hover:shadow-amber-500/20 hover:shadow-2xl"
+      onClick={() => {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("cinema.lastSelectedMovie", String(movie.id));
+        }
+      }}
+      className="group relative block overflow-hidden rounded-2xl bg-[var(--bg-secondary)] shadow-lg transition-transform duration-300 hover:scale-[1.03] hover:shadow-[0_0_30px_rgba(0,0,0,0.4)]"
     >
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full">
@@ -27,26 +32,27 @@ export function MovieCard({ movie }: MovieCardProps) {
           unoptimized
         />
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-secondary)]/70 to-transparent" />
       </div>
 
       {/* Info */}
       <div className="absolute bottom-0 left-0 right-0 p-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-1">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--accent)] mb-1">
           Now Playing
         </p>
-        <h3 className="text-base font-bold text-white leading-tight line-clamp-2">
+        <h3 className="text-base font-bold text-[var(--text-primary)] leading-tight line-clamp-2">
           {movie.title}
         </h3>
         {movie.genres && movie.genres.length > 0 && (
-          <p className="mt-1 text-xs text-zinc-400 line-clamp-1">
+          <p className="mt-1 text-xs text-[var(--text-secondary)] line-clamp-1">
             {movie.genres.join(" · ")}
           </p>
         )}
       </div>
+      <span className="sr-only">Click to open {movie.title}</span>
 
       {/* Hover glow border */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5 group-hover:ring-amber-400/40 transition-all duration-300" />
+      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/5 group-hover:ring-[var(--accent)]/40 transition-all duration-300" />
     </Link>
   );
 }

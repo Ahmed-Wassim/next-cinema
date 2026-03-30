@@ -7,20 +7,20 @@ export default function HomeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/movies" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 shadow-md shadow-amber-500/30">
-              <Film className="h-4 w-4 text-zinc-950" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] shadow-md shadow-[var(--theme-glow)]">
+              <Film className="h-4 w-4 text-black" />
             </div>
-            <span className="text-base font-bold tracking-tight text-white group-hover:text-amber-400 transition-colors">
+            <span className="text-base font-bold tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
               CineBook
             </span>
           </Link>
-          <nav className="flex items-center gap-4 text-sm text-zinc-400">
-            <Link href="/movies" className="hover:text-white transition-colors">
+          <nav className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
+            <Link href="/movies" className="hover:text-[var(--text-primary)] transition-colors">
               Now Playing
             </Link>
           </nav>
@@ -33,7 +33,7 @@ export default function HomeLayout({
       </main>
 
       {/* Footer */}
-      <footer className="mt-20 border-t border-zinc-800 py-6 text-center text-xs text-zinc-600">
+      <footer className="mt-20 border-t border-[var(--border)] py-6 text-center text-xs text-[var(--text-secondary)]">
         © {new Date().getFullYear()} CineBook. All rights reserved.
       </footer>
     </div>

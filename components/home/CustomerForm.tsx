@@ -44,7 +44,7 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
   ) {
     return (
       <div className="space-y-1.5">
-        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <label className="block text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           {label}
         </label>
         <input
@@ -55,10 +55,10 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
             setForm((f) => ({ ...f, [key]: e.target.value }))
           }
           className={cn(
-            "w-full rounded-xl border bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-colors",
+            "w-full rounded-xl border bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none transition-colors",
             errors[key]
               ? "border-red-500 focus:border-red-400"
-              : "border-zinc-700 focus:border-amber-500"
+              : "border-[var(--border)] focus:border-[var(--accent)]"
           )}
         />
         {errors[key] && (
@@ -75,7 +75,7 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
 
       {/* Phone with country code */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <label className="block text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Phone Number
         </label>
         <div className="flex gap-2">
@@ -88,13 +88,13 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
               setForm((f) => ({ ...f, phone_country_code: country || "EG" }))
             }
             className={cn(
-              "phone-input-root flex w-full rounded-xl border bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 transition-colors",
+              "phone-input-root flex w-full rounded-xl border bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] transition-colors",
               errors.phone
                 ? "border-red-500 focus-within:border-red-400"
-                : "border-zinc-700 focus-within:border-amber-500"
+                : "border-[var(--border)] focus-within:border-[var(--accent)]"
             )}
             numberInputProps={{
-              className: "flex-1 bg-transparent border-none outline-none text-zinc-100 placeholder-zinc-600 w-full ml-3"
+              className: "flex-1 bg-transparent border-none outline-none text-[var(--text-primary)] placeholder-[var(--text-secondary)] w-full ml-3"
             }}
           />
         </div>
@@ -106,7 +106,7 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-xl bg-amber-500 py-3.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-500/25 transition-all hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-bold text-black shadow-lg shadow-[var(--accent)]/25 transition-all hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isLoading ? "Processing…" : "Confirm & Pay →"}
       </button>

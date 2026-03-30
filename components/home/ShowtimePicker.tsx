@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { GroupedShowtimes } from "@/types/home";
 import { cn } from "@/lib/utils";
 
@@ -11,15 +10,15 @@ interface ShowtimePickerProps {
   onSelectShowtime?: (id: number) => void;
 }
 
-export function ShowtimePicker({ 
-  showtimes, 
-  selectedShowtimeId, 
-  onSelectShowtime 
+export function ShowtimePicker({
+  showtimes,
+  selectedShowtimeId,
+  onSelectShowtime,
 }: ShowtimePickerProps) {
   const branches = Object.keys(showtimes);
   const [activeBranch, setActiveBranch] = useState(branches[0] ?? "");
 
-  const dateMap = activeBranch ? showtimes[activeBranch] ?? {} : {};
+  const dateMap = activeBranch ? (showtimes[activeBranch] ?? {}) : {};
   const dates = Object.keys(dateMap);
   const [activeDate, setActiveDate] = useState(dates[0] ?? "");
 
@@ -57,7 +56,14 @@ export function ShowtimePicker({
 
   if (branches.length === 0) {
     return (
-      <p className="text-zinc-500 text-sm">No showtimes currently available.</p>
+      <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)]/40 p-4 text-center text-[var(--text-secondary)]">
+        <p className="text-sm font-semibold">
+          No showtimes currently available.
+        </p>
+        <p className="text-xs">
+          Try another date or branch for the latest schedule.
+        </p>
+      </div>
     );
   }
 
@@ -65,7 +71,7 @@ export function ShowtimePicker({
     <div className="space-y-5">
       {/* Branch tabs */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Location
         </p>
         <div className="flex flex-wrap gap-2">
@@ -76,8 +82,8 @@ export function ShowtimePicker({
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                 activeBranch === b
-                  ? "bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/30"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  ? "bg-[var(--accent)] text-black shadow-md shadow-[var(--accent)]/30"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]",
               )}
             >
               {b}
@@ -88,7 +94,7 @@ export function ShowtimePicker({
 
       {/* Date tabs */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Date
         </p>
         <div className="flex flex-wrap gap-2">
@@ -99,8 +105,8 @@ export function ShowtimePicker({
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                 activeDate === d
-                  ? "bg-zinc-100 text-zinc-900"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  ? "bg-[var(--bg-primary)] text-[var(--text-primary)]"
+                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]",
               )}
             >
               {formatDate(d)}
@@ -111,11 +117,11 @@ export function ShowtimePicker({
 
       {/* Time slots */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Showtime
         </p>
         {slots.length === 0 ? (
-          <p className="text-zinc-500 text-sm">No showtimes on this date.</p>
+          <p className="text-[var(--text-secondary)] text-sm">No showtimes on this date.</p>
         ) : (
           <div className="flex flex-wrap gap-3">
             {slots.map((s) => (
@@ -127,18 +133,18 @@ export function ShowtimePicker({
                 className={cn(
                   "group relative overflow-hidden rounded-xl border px-5 py-3 text-sm font-semibold transition-all",
                   selectedShowtimeId === s.id
-                    ? "border-amber-500 bg-amber-500/10 text-white shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                    : "border-zinc-700 bg-zinc-800 text-zinc-200 hover:border-amber-500/60 hover:bg-zinc-700 hover:text-white"
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-primary)] shadow-[0_0_15px_var(--accent-shadow)]"
+                    : "border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--accent)]/60 hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]",
                 )}
               >
-                <span className="relative z-10">{formatTime(s.start_time)}</span>
+                <span className="relative z-10">
+                  {formatTime(s.start_time)}
+                </span>
                 {s.available_seats !== undefined && (
                   <span
                     className={cn(
                       "relative z-10 ml-2 text-xs font-normal",
-                      s.available_seats > 0
-                        ? "text-green-400"
-                        : "text-red-400"
+                      s.available_seats > 0 ? "text-green-400" : "text-red-400",
                     )}
                   >
                     {s.available_seats > 0
@@ -146,7 +152,7 @@ export function ShowtimePicker({
                       : "Full"}
                   </span>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 to-amber-500/0 group-hover:from-amber-500/10 group-hover:to-amber-600/5 transition-all duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/0 to-[var(--accent)]/0 group-hover:from-[var(--accent)]/10 group-hover:to-[var(--accent)]/5 transition-all duration-300" />
               </button>
             ))}
           </div>

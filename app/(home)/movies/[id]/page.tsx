@@ -1,107 +1,104 @@
-import Image from "next/image";
-import { notFound } from "next/navigation";
-import { getMovieDetails } from "@/services/homeService";
-import { MovieBookingFlow } from "@/components/home/MovieBookingFlow";
-import { Calendar, Globe } from "lucide-react";
+import Image from "next/image"
+import { notFound } from "next/navigation"
+import { getMovieDetails } from "@/services/homeService"
+import { MovieBookingFlow } from "@/components/home/MovieBookingFlow"
+import { Calendar, Globe } from "lucide-react"
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: Props) {
-  const { id } = await params;
+  const { id } = await params
   try {
-    const res = await getMovieDetails(id);
-    return { title: `${res.data.data.title} — CineBook` };
+    const res = await getMovieDetails(id)
+    return { title: `${res.data.data.title} — CineBook` }
   } catch {
-    return { title: "Movie — CineBook" };
+    return { title: "Movie — CineBook" }
   }
 }
 
 export default async function MovieDetailPage({ params }: Props) {
-  const { id } = await params;
+  const { id } = await params
+  let movie
+  let showtimes
 
-  let movie;
-  let showtimes;
   try {
-    const res = await getMovieDetails(id);
-    movie = res.data.data;
-    showtimes = res.data.showtimes;
+    const res = await getMovieDetails(id)
+    movie = res.data.data
+    showtimes = res.data.showtimes
   } catch {
-    notFound();
+    notFound()
   }
 
-  const backdrop = movie.backdrop ?? movie.poster ?? null;
+  const backdrop = movie.backdrop ?? movie.poster ?? null
 
   return (
-    <div>
-      {/* Backdrop hero */}
-      {backdrop && (
-        <div className="relative -mx-4 -mt-8 mb-10 h-72 sm:-mx-6 sm:h-80 lg:-mx-8">
+    <div className="mx-auto max-w-7xl space-y-10 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden rounded-3xl border border-[var(--border)] shadow-[0_25px_60px_rgba(0,0,0,0.7)]">
+        {backdrop ? (
           <Image
             src={backdrop}
             alt={movie.title}
             fill
-            className="object-cover object-center"
+            className="object-cover"
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/30 via-zinc-950/60 to-zinc-950" />
-        </div>
-      )}
-
-      <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
-        {/* Poster */}
-        {movie.poster && (
-          <div className="hidden lg:block">
-            <div className="relative aspect-[2/3] overflow-hidden rounded-2xl shadow-2xl shadow-zinc-950">
-              <Image
-                src={movie.poster}
-                alt={movie.title}
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </div>
-          </div>
+        ) : (
+          <div className="h-64 bg-[var(--bg-secondary)]" />
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
 
-        {/* Info + showtimes */}
-        <div className="space-y-8">
-          {/* Title & meta */}
-          <div>
-            {movie.genres && movie.genres.length > 0 && (
-              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-amber-400">
-                {movie.genres.join(" · ")}
-              </p>
+        <div className="relative p-6 md:p-10">
+          <p className="inline-flex rounded-full bg-[var(--accent)]/20 px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+            Premium Cinema
+          </p>
+          <h1 className="mt-3 text-3xl font-extrabold text-white sm:text-5xl">{movie.title}</h1>
+          <p className="mt-3 max-w-3xl text-sm text-[var(--text-secondary)] sm:text-base">{movie.overview}</p>
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
+            {movie.genres?.map((g) => (
+              <span key={g} className="rounded-full bg-white/10 px-3 py-1">{g}</span>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-[var(--text-secondary)]">
+            {movie.release_date && (
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                {new Date(movie.release_date).getFullYear()}
+              </span>
             )}
-            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-              {movie.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-zinc-400">
-              {movie.release_date && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {new Date(movie.release_date).getFullYear()}
-                </span>
-              )}
-              {movie.language && (
-                <span className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5" />
-                  {movie.language.toUpperCase()}
-                </span>
-              )}
-            </div>
-            {movie.overview && (
-              <p className="mt-4 text-sm leading-relaxed text-zinc-400 max-w-2xl">
-                {movie.overview}
-              </p>
+            {movie.language && (
+              <span className="inline-flex items-center gap-1">
+                <Globe className="h-4 w-4" />
+                {movie.language.toUpperCase()}
+              </span>
+            )}
+            {movie.rating != null && (
+              <span className="rounded-full bg-white/10 px-2 py-0.5 font-semibold text-white">
+                ⭐ {movie.rating.toFixed(1)}
+              </span>
             )}
           </div>
+        </div>
+      </section>
 
-          {/* Booking Flow (Picker + Seats) */}
+      <section className="grid gap-8 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-5">
           <MovieBookingFlow showtimes={showtimes ?? {}} />
         </div>
-      </div>
+
+        <aside className="rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Need help?</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Premium seating includes extra legroom, recline, and snack delivery.<br />
+            All bookings are refundable up to 1 hour before showtime.
+          </p>
+          <div className="mt-5 grid gap-2">
+            <span className="rounded-lg bg-[var(--bg-primary)]/60 px-4 py-2 text-sm text-[var(--text-primary)]">Live chat available until 10PM</span>
+            <span className="rounded-lg bg-[var(--bg-primary)]/60 px-4 py-2 text-sm text-[var(--text-primary)]">VIP code: CINEMAGLOW for 5% off</span>
+          </div>
+        </aside>
+      </section>
     </div>
-  );
+  )
 }

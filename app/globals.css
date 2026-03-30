@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #070b12;
+  --bg-secondary: #0b1120;
+  --accent: #ffb703;
+  --accent-hover: #ffd169;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+  --theme-glow: transparent;
+
+  /* Compatibility aliases */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --surface: var(--bg-secondary);
+  --surface-soft: #131a2b;
+  --accent-2: #14b8a6;
+  --accent-3: #c084fc;
 }
 
 @theme inline {
@@ -11,6 +25,84 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+
+*,
+*::before,
+*::after {
+  transition: background-color 300ms ease, color 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.theme-glow {
+  box-shadow: 0 0 24px var(--theme-glow);
+}
+
+.theme-switcher {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  z-index: 100;
+}
+
+.theme-switcher-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-switcher-panel {
+  margin-top: 8px;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.theme-switcher-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.55rem;
+  color: var(--text-primary);
+  border: 1px solid transparent;
+}
+
+.theme-switcher-option.active {
+  border-color: var(--accent);
+  background: rgba(255,255,255,0.08);
+}
+
+
+.neon-shadow {
+  box-shadow: 0 0 20px rgba(255, 183, 3, 0.25), 0 0 40px rgba(192, 132, 252, 0.2);
+}
+
+.neon-text {
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(255, 183, 3, 0.8), 0 0 16px rgba(255, 183, 3, 0.5);
+}
+
+.glow-border {
+  border: 1px solid rgba(255, 183, 3, 0.45);
+}
+
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -70,4 +162,37 @@ body {
   .dialog-content[data-state] {
     animation: none !important;
   }
+}
+
+/* Phone input theme to match dark app UI */
+.PhoneInput,
+.phone-input-root {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.PhoneInputInput {
+  background-color: #0f172a !important;
+  border: none !important;
+  color: #f8fafc !important;
+}
+
+.PhoneInputCountrySelect,
+.PhoneInputCountrySelectOption,
+.PhoneInputCountrySelectDropdown {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.PhoneInputCountrySelectOption:hover,
+.PhoneInputCountrySelectOption:focus,
+.PhoneInputCountrySelect:hover,
+.PhoneInputCountrySelect:focus {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+.PhoneInputCountryIcon {
+  color: #f8fafc !important;
 }

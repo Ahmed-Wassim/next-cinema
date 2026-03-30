@@ -111,6 +111,20 @@ export interface CheckoutResponse {
 /* ── Confirmation ────────────────────────────────────────────── */
 
 export interface BookingConfirmation extends Booking {
+  total_price?: number | string;
+  created_at?: string;
+  payment?: {
+    transaction_ref?: string;
+    gateway?: string;
+  };
+  movie?: Pick<HomeMovie, "title" | "poster">;
+  showtime?: {
+    start_time?: string;
+    hall?: string;
+    branch?: string;
+    movie?: HomeMovie;
+  };
+  seats?: ShowtimeSeat[] | string;
   tickets?: Array<{
     id: number;
     seat_label?: string;
