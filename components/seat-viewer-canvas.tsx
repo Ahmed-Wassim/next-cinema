@@ -31,7 +31,6 @@ export function SeatViewerCanvas({
   const [panX, setPanX] = useState(-20);
   const [panY, setPanY] = useState(-20);
   const [isPanning, setIsPanning] = useState(false);
-  const [hasMoved, setHasMoved] = useState(false);
 
   // Hover state
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
@@ -102,6 +101,15 @@ export function SeatViewerCanvas({
     return { dx, dy };
   }, [designerBounds, alignSeatsToBounds, seats]);
 
+  const activateSeat = useCallback(
+    (seat: Seat) => {
+      const isActive = seat.status === "active" || seat.is_active !== false;
+      if (!isActive) return;
+      onSeatClick?.(seat);
+    },
+    [onSeatClick],
+  );
+
   /* ---- Handlers ---- */
   const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -135,12 +143,10 @@ export function SeatViewerCanvas({
     if ((e.target as Element).tagName !== 'svg') return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsPanning(true);
-    setHasMoved(false);
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!isPanning) return;
-    setHasMoved(true);
     setPanX((px) => px - e.movementX);
     setPanY((py) => py - e.movementY);
   };
@@ -316,11 +322,14 @@ export function SeatViewerCanvas({
                 transform={`rotate(${rot} ${px + w / 2} ${py + h / 2})`}
                 onPointerEnter={() => setHoveredSeat(seat)}
                 onPointerLeave={() => setHoveredSeat(null)}
-                onClick={(e) => {
+                onPointerDown={(e) => {
                   e.stopPropagation();
-                  onSeatClick?.(seat);
                 }}
-                className="cursor-pointer"
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  activateSeat(seat);
+                }}
+                className={isActive ? "cursor-pointer" : "cursor-not-allowed"}
                 style={{ transition: "opacity 80ms ease" }}
               >
                 <rect
