@@ -128,7 +128,7 @@ export function SeatMap({
         <SeatViewerCanvas
           seats={canvasSeats}
           onSeatClick={handleSeatClick}
-          className="h-[520px]"
+          className="h-[260px]"
         />
       </motion.div>
 
