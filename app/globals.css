@@ -236,36 +236,3 @@ body {
     transition-duration: 0ms !important;
   }
 }
-
-/* Phone input theme to match dark app UI */
-.PhoneInput,
-.phone-input-root {
-  background-color: #0f172a !important;
-  border-color: #334155 !important;
-  color: #f8fafc !important;
-}
-
-.PhoneInputInput {
-  background-color: #0f172a !important;
-  border: none !important;
-  color: #f8fafc !important;
-}
-
-.PhoneInputCountrySelect,
-.PhoneInputCountrySelectOption,
-.PhoneInputCountrySelectDropdown {
-  background-color: #0f172a !important;
-  color: #f8fafc !important;
-}
-
-.PhoneInputCountrySelectOption:hover,
-.PhoneInputCountrySelectOption:focus,
-.PhoneInputCountrySelect:hover,
-.PhoneInputCountrySelect:focus {
-  background-color: #1e293b !important;
-  color: #f8fafc !important;
-}
-
-.PhoneInputCountryIcon {
-  color: #f8fafc !important;
-}
