@@ -31,6 +31,7 @@ export function SeatViewerCanvas({
   const [panX, setPanX] = useState(-20);
   const [panY, setPanY] = useState(-20);
   const [isPanning, setIsPanning] = useState(false);
+  const [hasMoved, setHasMoved] = useState(false);
 
   // Hover state
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
@@ -130,12 +131,16 @@ export function SeatViewerCanvas({
   };
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    // Only capture on the SVG background, not on interactive elements like seats
+    if ((e.target as Element).tagName !== 'svg') return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsPanning(true);
+    setHasMoved(false);
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!isPanning) return;
+    setHasMoved(true);
     setPanX((px) => px - e.movementX);
     setPanY((py) => py - e.movementY);
   };

@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { extractPaginated } from "@/lib/extract-paginated";
+import currencyCodes from "currency-codes";
 import { getHalls } from "@/services/hallService";
 import {
   createPriceTier,
@@ -62,6 +63,7 @@ export default function PriceTiersPage() {
     hall_id: 0,
     name: "",
     price: 0,
+    currency: "USD",
     color: "#6366f1",
   });
   const [editOpen, setEditOpen] = useState(false);
@@ -131,6 +133,7 @@ export default function PriceTiersPage() {
         hall_id: halls[0]?.id ?? 0,
         name: "",
         price: 0,
+        currency: "USD",
         color: "#6366f1",
       });
       await load();
@@ -147,6 +150,7 @@ export default function PriceTiersPage() {
         hall_id: editing.hall_id,
         name: editing.name,
         price: Number(editing.price),
+        currency: editing.currency,
         color: editing.color,
       });
       setEditOpen(false);
@@ -257,6 +261,26 @@ export default function PriceTiersPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select
+                    value={createValues.currency || ""}
+                    onValueChange={(v) =>
+                      setCreateValues((s) => ({ ...s, currency: v }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyCodes.data.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.code} - {c.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="pt-color">Color</Label>
                   <div className="flex gap-2">
                     <Input
@@ -307,6 +331,7 @@ export default function PriceTiersPage() {
                 <TableHead>Hall</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Price</TableHead>
+                <TableHead>Currency</TableHead>
                 <TableHead className="w-32">Color</TableHead>
                 <TableHead className="w-[140px]" />
               </TableRow>
@@ -319,6 +344,7 @@ export default function PriceTiersPage() {
                   </TableCell>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell>{r.price}</TableCell>
+                  <TableCell>{r.currency}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span
@@ -434,6 +460,26 @@ export default function PriceTiersPage() {
                     }
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select
+                    value={editing.currency || ""}
+                    onValueChange={(v) =>
+                      setEditing((s) => (s ? { ...s, currency: v } : s))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencyCodes.data.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.code} - {c.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Color</Label>
