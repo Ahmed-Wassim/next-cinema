@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { SeatViewerCanvas } from "@/components/seat-viewer-canvas";
 import type { ShowtimeSeat } from "@/types/home";
 import type { Seat } from "@/types/seat";
@@ -98,12 +99,26 @@ export function SeatMap({
   const currency = selectedSeat ? getSeatCurrency(selectedSeat) : "";
 
   return (
-    <div className="space-y-4">
-      <div className="cinema-surface overflow-hidden rounded-[28px] p-3">
+    <motion.div
+      className="space-y-4"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <motion.div
+        className="cinema-surface overflow-hidden rounded-[28px] p-3"
+        initial={{ opacity: 0.96, scale: 0.995 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: "spring", stiffness: 220, damping: 24 }}
+      >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
           <div>
-            <p className="text-sm font-semibold text-[var(--text-primary)]">Choose your seats</p>
-            <p className="text-xs text-[var(--text-secondary)]">Hover to inspect, click to reserve your favorites.</p>
+            <p className="text-sm font-semibold text-[var(--text-primary)]">
+              Choose your seats
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Hover to inspect, click to reserve your favorites.
+            </p>
           </div>
           <div className="rounded-full border border-white/8 bg-white/6 px-3 py-1 text-xs text-[var(--text-secondary)]">
             Up to {maxSelectable} seats
@@ -115,27 +130,44 @@ export function SeatMap({
           onSeatClick={handleSeatClick}
           className="h-[520px]"
         />
-      </div>
+      </motion.div>
 
-      <div className="flex flex-wrap items-center gap-5 px-1">
+      <motion.div
+        className="flex flex-wrap items-center gap-5 px-1"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.08 }}
+      >
         {legend.map((item) => (
-          <div key={item.label} className="flex items-center gap-2">
+          <motion.div
+            key={item.label}
+            className="flex items-center gap-2"
+            whileHover={{ y: -1 }}
+          >
             <span
               className="h-4 w-4 rounded-md border border-white/10"
               style={{ backgroundColor: item.color }}
             />
-            <span className="text-xs text-[var(--text-secondary)]">{item.label}</span>
-          </div>
+            <span className="text-xs text-[var(--text-secondary)]">
+              {item.label}
+            </span>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
-      <div
+      <motion.div
         className={cn(
           "flex items-center justify-between rounded-[22px] border px-5 py-4 text-sm transition-all duration-300",
           selected.size > 0
             ? "cinema-surface border-[var(--accent)]/35"
             : "border-white/8 bg-white/5 opacity-75",
         )}
+        animate={
+          selected.size > 0
+            ? { scale: 1, opacity: 1, y: 0 }
+            : { scale: 0.995, opacity: 0.8, y: 0 }
+        }
+        transition={{ type: "spring", stiffness: 240, damping: 22 }}
       >
         <span className="text-[var(--text-secondary)]">
           {selected.size === 0
@@ -143,11 +175,17 @@ export function SeatMap({
             : `${selected.size} seat${selected.size > 1 ? "s" : ""} selected`}
         </span>
         {selected.size > 0 && totalPrice > 0 && (
-          <span className="font-semibold text-[var(--accent)]">
+          <motion.span
+            className="font-semibold text-[var(--accent)]"
+            key={`${currency}-${totalPrice}`}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22 }}
+          >
             {currency} {totalPrice.toFixed(2)}
-          </span>
+          </motion.span>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

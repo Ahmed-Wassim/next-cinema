@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { browseMovies } from "@/services/homeService";
 import type { HomeMovie } from "@/types/home";
 
@@ -13,6 +14,13 @@ const featurePoints = [
   "Faster seat selection with visual seat zoning",
   "Theme switching tuned for each cinema mood",
 ];
+
+const movieCardTransition = {
+  type: "spring",
+  stiffness: 240,
+  damping: 24,
+  mass: 0.9,
+} as const;
 
 export function MoviesPageClient() {
   const [movies, setMovies] = useState<HomeMovie[]>([]);
@@ -148,53 +156,153 @@ export function MoviesPageClient() {
                     key={movie.id}
                     href={`/movies/${movie.id}`}
                     onClick={() => window.localStorage.setItem(STORAGE_KEY, String(movie.id))}
-                    className="group cinema-surface relative block overflow-hidden rounded-[30px] transition-all duration-500 hover:-translate-y-0.5 hover:border-[var(--accent)]/24 hover:shadow-[0_20px_42px_rgba(2,6,23,0.3)]"
+                    className="group block"
                   >
-                    <div className="pointer-events-none absolute inset-0 rounded-[30px] ring-1 ring-inset ring-white/6 transition-all duration-500 group-hover:ring-[var(--accent)]/18" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/4 via-transparent to-black/8 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                    <div className="relative h-64 overflow-hidden">
-                      <Image
-                        src={movie.backdrop ?? movie.poster ?? "/placeholder-poster.svg"}
-                        alt={movie.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                        className="object-cover transition duration-700 ease-out group-hover:scale-[1.015]"
-                        unoptimized
+                    <motion.article
+                      className="cinema-surface relative overflow-hidden rounded-[30px]"
+                      initial="rest"
+                      whileHover="hover"
+                      animate="rest"
+                    >
+                      <motion.div
+                        className="pointer-events-none absolute inset-0 rounded-[30px] ring-1 ring-inset ring-white/6"
+                        variants={{
+                          rest: { opacity: 1, boxShadow: "inset 0 0 0 rgba(0,0,0,0)" },
+                          hover: { opacity: 1, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)" },
+                        }}
+                        transition={movieCardTransition}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/28 to-black/8 transition-all duration-500 group-hover:from-black/78 group-hover:via-black/24 group-hover:to-black/0" />
-                      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/20 to-transparent opacity-70" />
-                      <div className="absolute inset-y-0 left-[-20%] w-[38%] -skew-x-12 bg-white/10 opacity-0 blur-2xl transition-all duration-700 group-hover:left-[88%] group-hover:opacity-100" />
-                      <div className="absolute right-4 top-4 rounded-full border border-white/12 bg-black/28 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur-md transition-colors duration-300 group-hover:border-[var(--accent)]/20 group-hover:bg-black/36">
-                        Book now
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-b from-white/4 via-transparent to-black/8"
+                        variants={{
+                          rest: { opacity: 0 },
+                          hover: { opacity: 1 },
+                        }}
+                        transition={movieCardTransition}
+                      />
+                      <motion.div
+                        className="absolute inset-0"
+                        variants={{
+                          rest: {
+                            y: 0,
+                            boxShadow: "0 12px 26px rgba(2,6,23,0.18)",
+                            borderColor: "rgba(255,255,255,0.04)",
+                          },
+                          hover: {
+                            y: -2,
+                            boxShadow: "0 20px 42px rgba(2,6,23,0.28)",
+                            borderColor: "rgba(255,183,3,0.16)",
+                          },
+                        }}
+                        transition={movieCardTransition}
+                      />
+                      <div className="relative h-64 overflow-hidden">
+                        <motion.div
+                          className="absolute inset-0"
+                          variants={{
+                            rest: { scale: 1 },
+                            hover: { scale: 1.008 },
+                          }}
+                          transition={movieCardTransition}
+                        >
+                          <Image
+                            src={movie.backdrop ?? movie.poster ?? "/placeholder-poster.svg"}
+                            alt={movie.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </motion.div>
+                        <motion.div
+                          className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/28 to-black/8"
+                          variants={{
+                            rest: { opacity: 1 },
+                            hover: { opacity: 0.92 },
+                          }}
+                          transition={movieCardTransition}
+                        />
+                        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/20 to-transparent opacity-70" />
+                        <motion.div
+                          className="absolute inset-y-0 left-[-20%] w-[38%] -skew-x-12 bg-white/10 opacity-0 blur-2xl"
+                          variants={{
+                            rest: { x: "-8%", opacity: 0 },
+                            hover: { x: "240%", opacity: 0.55 },
+                          }}
+                          transition={{ duration: 0.9, ease: "easeInOut" }}
+                        />
+                        <motion.div
+                          className="absolute right-4 top-4 rounded-full border border-white/12 bg-black/28 px-3 py-1 text-xs font-semibold text-white/85 backdrop-blur-md"
+                          variants={{
+                            rest: { opacity: 0.88 },
+                            hover: { opacity: 1 },
+                          }}
+                          transition={movieCardTransition}
+                        >
+                          Book now
+                        </motion.div>
                       </div>
-                    </div>
 
-                    <div className="relative p-5">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <span className="rounded-full border border-[var(--accent)]/12 bg-[var(--accent)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent)] transition-colors duration-300 group-hover:border-[var(--accent)]/22 group-hover:bg-[var(--accent)]/14">
-                          Featured
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)] transition-all duration-300 group-hover:text-[var(--text-primary)]">
-                          Open details
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-semibold text-white transition-colors duration-300 group-hover:text-[var(--accent-soft)]">
-                        {movie.title}
-                      </h3>
-                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-[var(--text-primary)]/78">
-                        {movie.overview ?? "No description available."}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {(movie.genres ?? []).slice(0, 4).map((genre) => (
-                          <span
-                            key={genre}
-                            className="rounded-full border border-white/8 bg-white/6 px-3 py-1 text-xs font-medium text-[var(--text-primary)] transition-colors duration-300 group-hover:border-[var(--accent)]/20 group-hover:bg-[var(--accent)]/8"
+                      <div className="relative p-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <motion.span
+                            className="rounded-full border border-[var(--accent)]/12 bg-[var(--accent)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--accent)]"
+                            variants={{
+                              rest: { opacity: 0.94 },
+                              hover: { opacity: 1 },
+                            }}
+                            transition={movieCardTransition}
                           >
-                            {genre}
-                          </span>
-                        ))}
+                            Featured
+                          </motion.span>
+                          <motion.span
+                            className="text-xs text-[var(--text-secondary)]"
+                            variants={{
+                              rest: { x: 0, color: "var(--text-secondary)" },
+                              hover: { x: 2, color: "var(--text-primary)" },
+                            }}
+                            transition={movieCardTransition}
+                          >
+                            Open details
+                          </motion.span>
+                        </div>
+                        <motion.h3
+                          className="text-xl font-semibold text-white"
+                          variants={{
+                            rest: { color: "#ffffff" },
+                            hover: { color: "var(--accent-soft)" },
+                          }}
+                          transition={movieCardTransition}
+                        >
+                          {movie.title}
+                        </motion.h3>
+                        <motion.p
+                          className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--text-secondary)]"
+                          variants={{
+                            rest: { opacity: 0.88 },
+                            hover: { opacity: 1 },
+                          }}
+                          transition={movieCardTransition}
+                        >
+                          {movie.overview ?? "No description available."}
+                        </motion.p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(movie.genres ?? []).slice(0, 4).map((genre) => (
+                            <motion.span
+                              key={genre}
+                              className="rounded-full border border-white/8 bg-white/6 px-3 py-1 text-xs font-medium text-[var(--text-primary)]"
+                              variants={{
+                                rest: { opacity: 0.92 },
+                                hover: { opacity: 1 },
+                              }}
+                              transition={movieCardTransition}
+                            >
+                              {genre}
+                            </motion.span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </motion.article>
                   </Link>
                 ))}
           </div>

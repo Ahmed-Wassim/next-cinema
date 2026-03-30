@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import type { GroupedShowtimes } from "@/types/home";
 import { cn } from "@/lib/utils";
 
@@ -68,17 +69,27 @@ export function ShowtimePicker({
   }
 
   return (
-    <div className="space-y-5">
+    <motion.div
+      className="space-y-5"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
       {/* Branch tabs */}
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Location
         </p>
         <div className="flex flex-wrap gap-2">
-          {branches.map((b) => (
-            <button
+          {branches.map((b, index) => (
+            <motion.button
               key={b}
               onClick={() => handleBranchChange(b)}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: index * 0.03 }}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.985 }}
               className={cn(
                 "rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300",
                 activeBranch === b
@@ -87,7 +98,7 @@ export function ShowtimePicker({
               )}
             >
               {b}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -98,10 +109,15 @@ export function ShowtimePicker({
           Date
         </p>
         <div className="flex flex-wrap gap-2">
-          {dates.map((d) => (
-            <button
+          {dates.map((d, index) => (
+            <motion.button
               key={d}
               onClick={() => setActiveDate(d)}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: index * 0.03 }}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.985 }}
               className={cn(
                 "rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                 activeDate === d
@@ -110,7 +126,7 @@ export function ShowtimePicker({
               )}
             >
               {formatDate(d)}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -121,15 +137,27 @@ export function ShowtimePicker({
           Showtime
         </p>
         {slots.length === 0 ? (
-          <p className="text-[var(--text-secondary)] text-sm">No showtimes on this date.</p>
+          <p className="text-[var(--text-secondary)] text-sm">
+            No showtimes on this date.
+          </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {slots.map((s) => (
-              <button
+            {slots.map((s, index) => (
+              <motion.button
                 key={s.id}
                 onClick={() => {
                   if (onSelectShowtime) onSelectShowtime(s.id);
                 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 240,
+                  damping: 24,
+                  delay: index * 0.04,
+                }}
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.99 }}
                 className={cn(
                   "group relative overflow-hidden rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-all duration-300",
                   selectedShowtimeId === s.id
@@ -156,15 +184,17 @@ export function ShowtimePicker({
                           : "bg-red-500/12 text-red-300",
                       )}
                     >
-                      {s.available_seats > 0 ? `${s.available_seats} left` : "Full"}
+                      {s.available_seats > 0
+                        ? `${s.available_seats} left`
+                        : "Full"}
                     </span>
                   )}
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

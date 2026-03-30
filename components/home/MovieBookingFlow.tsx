@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ShowtimePicker } from "@/components/home/ShowtimePicker";
 import { SeatMap } from "@/components/home/SeatMap";
@@ -16,11 +17,19 @@ interface MovieBookingFlowProps {
 }
 
 const steps = ["Select Showtime", "Choose Seats", "Confirm"];
+const sectionTransition = {
+  type: "spring",
+  stiffness: 220,
+  damping: 24,
+  mass: 0.9,
+} as const;
 
 export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedShowtimeId, setSelectedShowtimeId] = useState<number | null>(null);
+  const [selectedShowtimeId, setSelectedShowtimeId] = useState<number | null>(
+    null,
+  );
   const [selectedSeats, setSelectedSeats] = useState<ShowtimeSeat[]>([]);
   const [seats, setSeats] = useState<ShowtimeSeat[]>([]);
   const [isLoadingSeats, setIsLoadingSeats] = useState(false);
@@ -36,7 +45,9 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
     seat?.currency ?? seat?.price_tier?.currency ?? "USD";
 
   useEffect(() => {
-    const lastId = Number(window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0");
+    const lastId = Number(
+      window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0",
+    );
     if (lastId > 0) {
       setSelectedShowtimeId(lastId);
       setActiveStep(1);
@@ -109,11 +120,13 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
           type: "success",
         },
       ]);
-      router.push(`/checkout?showtimeId=${selectedShowtimeId}&seats=${selectedSeats.map((s) => s.id).join(",")}`);
+      router.push(
+        `/checkout?showtimeId=${selectedShowtimeId}&seats=${selectedSeats.map((s) => s.id).join(",")}`,
+      );
     } catch (err) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Could not reserve seats. Please try again.";
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Could not reserve seats. Please try again.";
       setError(message);
       setToasts((prev) => [
         ...prev,
@@ -130,12 +143,26 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="cinema-surface rounded-[30px] p-6">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{selectedStep}</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">Premium experience, step {activeStep + 1} of {steps.length}.</p>
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
+      <motion.div
+        className="cinema-surface rounded-[30px] p-6"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.05 }}
+      >
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+          {selectedStep}
+        </h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Premium experience, step {activeStep + 1} of {steps.length}.
+        </p>
         <Stepper steps={steps} currentStepIndex={activeStep} />
-      </div>
+      </motion.div>
 
       <ToastContainer
         toasts={toasts}
@@ -143,99 +170,252 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="cinema-surface rounded-[30px] p-5">
-          {activeStep === 0 && (
-            <div className="space-y-5">
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="text-sm font-semibold text-[var(--accent)]">Step 1: Showtime</p>
-                <p className="text-sm text-[var(--text-secondary)]">Pick your preferred date, location, and time slot.</p>
-              </div>
-              <ShowtimePicker
-                showtimes={showtimes}
-                selectedShowtimeId={selectedShowtimeId}
-                onSelectShowtime={(id) => {
-                  setSelectedShowtimeId(id);
-                  window.localStorage.setItem("cinema.lastSelectedShowtime", String(id));
-                  setSelectedSeats([]);
-                  setClearSelectionSignal((prev) => prev + 1);
-                }}
-              />
-            </div>
-          )}
-
-          {activeStep === 1 && (
-            <div className="space-y-5">
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="text-sm font-semibold text-[var(--accent)]">Step 2: Seats</p>
-                <p className="text-sm text-[var(--text-secondary)]">Tap seats to select. Premium seats glow and show exactly what you get.</p>
-              </div>
-
-              {isLoadingSeats ? (
-                <div className="grid grid-cols-3 gap-4">
-                  {Array.from({ length: 3 }).map((_, idx) => (
-                    <div key={idx} className="h-56 animate-pulse rounded-2xl bg-[var(--bg-primary)]" />
-                  ))}
+        <motion.div
+          className="cinema-surface rounded-[30px] p-5"
+          layout
+          transition={sectionTransition}
+        >
+          <AnimatePresence mode="wait">
+            {activeStep === 0 && (
+              <motion.div
+                key="showtime-step"
+                className="space-y-5"
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -18 }}
+                transition={sectionTransition}
+              >
+                <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
+                  <p className="text-sm font-semibold text-[var(--accent)]">
+                    Step 1: Showtime
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Pick your preferred date, location, and time slot.
+                  </p>
                 </div>
-              ) : error ? (
-                <div className="rounded-[24px] border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
-                  <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />{error}</div>
-                </div>
-              ) : (
-                <SeatMap
-                  seats={seats}
-                  onSelectionChange={setSelectedSeats}
-                  maxSelectable={6}
-                  clearSelectionSignal={clearSelectionSignal}
+                <ShowtimePicker
+                  showtimes={showtimes}
+                  selectedShowtimeId={selectedShowtimeId}
+                  onSelectShowtime={(id) => {
+                    setSelectedShowtimeId(id);
+                    window.localStorage.setItem(
+                      "cinema.lastSelectedShowtime",
+                      String(id),
+                    );
+                    setSelectedSeats([]);
+                    setClearSelectionSignal((prev) => prev + 1);
+                  }}
                 />
-              )}
-            </div>
-          )}
+              </motion.div>
+            )}
 
-          {activeStep === 2 && (
-            <div className="space-y-5">
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
-                <p className="text-sm font-semibold text-[var(--accent)]">Step 3: Confirm & Pay</p>
-                <p className="text-sm text-[var(--text-secondary)]">Review your seats and complete payment with the secure flow.</p>
-              </div>
-              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4 space-y-3">
-                <p className="text-sm text-[var(--text-secondary)]">Selected seats: {selectedSeats.length}</p>
-                <ul className="space-y-1 text-sm text-[var(--text-primary)]">
-                  {selectedSeats.map((seat) => (
-                    <li key={seat.id} className="flex items-center justify-between rounded-xl bg-white/6 px-3 py-2 transition-colors duration-300 hover:bg-white/10">
-                      <span>{seat.row_label ?? seat.row ?? "?"}{seat.col_label ?? seat.number ?? ""}</span>
-                      <span>{getSeatCurrency(seat)} {getSeatPrice(seat).toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-lg font-bold text-[var(--text-primary)]">
-                  <span>Total</span>
-                  <span>{selectedCurrency} {selectedTotal.toFixed(2)}</span>
+            {activeStep === 1 && (
+              <motion.div
+                key="seat-step"
+                className="space-y-5"
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -18 }}
+                transition={sectionTransition}
+              >
+                <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
+                  <p className="text-sm font-semibold text-[var(--accent)]">
+                    Step 2: Seats
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Tap seats to select. Premium seats glow and show exactly
+                    what you get.
+                  </p>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
 
-        <aside className="cinema-surface rounded-[30px] p-5">
-          <h3 className="text-lg font-bold text-[var(--text-primary)]">Quick Review</h3>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{selectedStep} ready</p>
+                {isLoadingSeats ? (
+                  <motion.div
+                    className="space-y-4"
+                    initial={{ opacity: 0.7 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <div className="cinema-surface overflow-hidden rounded-[28px] p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
+                        <div className="space-y-2">
+                          <div className="h-4 w-32 animate-pulse rounded-full bg-white/8" />
+                          <div className="h-3 w-48 animate-pulse rounded-full bg-white/6" />
+                        </div>
+                        <div className="h-7 w-24 animate-pulse rounded-full bg-white/6" />
+                      </div>
+
+                      <div className="relative overflow-hidden rounded-[24px] border border-white/8 bg-[var(--bg-primary)]/60 p-6">
+                        <div className="mb-8 flex justify-center">
+                          <div className="h-4 w-40 animate-pulse rounded-full bg-[var(--accent)]/16" />
+                        </div>
+
+                        <div className="space-y-3">
+                          {Array.from({ length: 6 }).map((_, rowIndex) => (
+                            <div
+                              key={rowIndex}
+                              className="flex items-center justify-center gap-2"
+                            >
+                              <div className="mr-3 h-4 w-4 animate-pulse rounded-full bg-white/8" />
+                              {Array.from({ length: 8 }).map((_, seatIndex) => (
+                                <div
+                                  key={seatIndex}
+                                  className="h-7 w-7 animate-pulse rounded-[10px] border border-white/8 bg-white/6"
+                                />
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-8 flex items-center justify-end gap-2">
+                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
+                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
+                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-5 px-1">
+                      {Array.from({ length: 3 }).map((_, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <div className="h-4 w-4 animate-pulse rounded-md bg-white/8" />
+                          <div className="h-3 w-20 animate-pulse rounded-full bg-white/6" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-[22px] border border-white/8 bg-white/5 px-5 py-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="h-4 w-36 animate-pulse rounded-full bg-white/8" />
+                        <div className="h-4 w-20 animate-pulse rounded-full bg-[var(--accent)]/14" />
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : error ? (
+                  <motion.div
+                    className="rounded-[24px] border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      {error}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <SeatMap
+                    seats={seats}
+                    onSelectionChange={setSelectedSeats}
+                    maxSelectable={6}
+                    clearSelectionSignal={clearSelectionSignal}
+                  />
+                )}
+              </motion.div>
+            )}
+
+            {activeStep === 2 && (
+              <motion.div
+                key="confirm-step"
+                className="space-y-5"
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -18 }}
+                transition={sectionTransition}
+              >
+                <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
+                  <p className="text-sm font-semibold text-[var(--accent)]">
+                    Step 3: Confirm & Pay
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Review your seats and complete payment with the secure flow.
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-white/8 bg-black/10 p-4 space-y-3">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Selected seats: {selectedSeats.length}
+                  </p>
+                  <ul className="space-y-1 text-sm text-[var(--text-primary)]">
+                    {selectedSeats.map((seat, index) => (
+                      <motion.li
+                        key={seat.id}
+                        className="flex items-center justify-between rounded-xl bg-white/6 px-3 py-2 transition-colors duration-300 hover:bg-white/10"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: index * 0.03 }}
+                      >
+                        <span>
+                          {seat.row_label ?? seat.row ?? "?"}
+                          {seat.col_label ?? seat.number ?? ""}
+                        </span>
+                        <span>
+                          {getSeatCurrency(seat)}{" "}
+                          {getSeatPrice(seat).toFixed(2)}
+                        </span>
+                      </motion.li>
+                    ))}
+                  </ul>
+                  <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-lg font-bold text-[var(--text-primary)]">
+                    <span>Total</span>
+                    <motion.span
+                      key={`${selectedCurrency}-${selectedTotal}`}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.22 }}
+                    >
+                      {selectedCurrency} {selectedTotal.toFixed(2)}
+                    </motion.span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        <motion.aside
+          className="cinema-surface rounded-[30px] p-5"
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.35, delay: 0.1 }}
+        >
+          <h3 className="text-lg font-bold text-[var(--text-primary)]">
+            Quick Review
+          </h3>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+            {selectedStep} ready
+          </p>
           <div className="mt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-            <div className="flex justify-between"><span>Showtime</span><span>{selectedShowtimeId ?? "-"}</span></div>
-            <div className="flex justify-between"><span>Seats selected</span><span>{selectedSeats.length}</span></div>
-            <div className="flex justify-between"><span>Subtotal</span><span>{selectedCurrency} {selectedTotal.toFixed(2)}</span></div>
+            <div className="flex justify-between">
+              <span>Showtime</span>
+              <span>{selectedShowtimeId ?? "-"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Seats selected</span>
+              <span>{selectedSeats.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>
+                {selectedCurrency} {selectedTotal.toFixed(2)}
+              </span>
+            </div>
           </div>
           <div className="mt-6 flex flex-col gap-3">
             <button
               onClick={proceedToNext}
-              disabled={(activeStep === 0 && !selectedShowtimeId) || (activeStep === 1 && selectedSeats.length === 0) || activeStep === 2}
+              disabled={
+                (activeStep === 0 && !selectedShowtimeId) ||
+                (activeStep === 1 && selectedSeats.length === 0) ||
+                activeStep === 2
+              }
               className={cn(
                 "rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300",
-                (activeStep === 0 && selectedShowtimeId) || (activeStep === 1 && selectedSeats.length > 0)
+                (activeStep === 0 && selectedShowtimeId) ||
+                  (activeStep === 1 && selectedSeats.length > 0)
                   ? "cinema-ring bg-[var(--accent)] text-black hover:-translate-y-0.5 hover:bg-[var(--accent-hover)]"
                   : "bg-white/8 text-[var(--text-secondary)] cursor-not-allowed",
               )}
             >
-              {activeStep === 2 ? "Ready for Payment" : `Proceed to ${steps[activeStep + 1]}`}
+              {activeStep === 2
+                ? "Ready for Payment"
+                : `Proceed to ${steps[activeStep + 1]}`}
               <ArrowRight className="ml-2 inline-block h-4 w-4" />
             </button>
 
@@ -248,21 +428,26 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
             </button>
 
             {activeStep === 2 && (
-              <button
+              <motion.button
                 onClick={handleReserve}
                 disabled={isReserving || selectedSeats.length === 0}
                 className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-black transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-400 disabled:opacity-50"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
               >
                 {isReserving ? (
-                  <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reserving...</span>
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Reserving...
+                  </span>
                 ) : (
                   "Confirm Booking"
                 )}
-              </button>
+              </motion.button>
             )}
           </div>
-        </aside>
+        </motion.aside>
       </div>
-    </div>
+    </motion.div>
   );
 }
