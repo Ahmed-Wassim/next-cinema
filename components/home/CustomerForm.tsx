@@ -16,7 +16,10 @@ interface CustomerFormProps {
   isLoading?: boolean;
 }
 
-export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps) {
+export function CustomerForm({
+  onSubmit,
+  isLoading = false,
+}: CustomerFormProps) {
   const [form, setForm] = useState<BookingCustomer>({
     name: "",
     email: "",
@@ -67,7 +70,8 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
     }
 
     const matches = countryEntries.filter((entry) => {
-      const haystack = `${entry.name} ${entry.country} ${entry.callingCode}`.toLowerCase();
+      const haystack =
+        `${entry.name} ${entry.country} ${entry.callingCode}`.toLowerCase();
       return haystack.includes(normalizedQuery);
     });
 
@@ -113,7 +117,7 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
     label: string,
     key: keyof BookingCustomer,
     type = "text",
-    placeholder = ""
+    placeholder = "",
   ) {
     return (
       <div className="space-y-1.5">
@@ -124,19 +128,15 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
           type={type}
           value={form[key] as string}
           placeholder={placeholder}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, [key]: e.target.value }))
-          }
+          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
           className={cn(
             "w-full rounded-xl border bg-[var(--bg-secondary)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none transition-colors",
             errors[key]
               ? "border-red-500 focus:border-red-400"
-              : "border-[var(--border)] focus:border-[var(--accent)]"
+              : "border-[var(--border)] focus:border-[var(--accent)]",
           )}
         />
-        {errors[key] && (
-          <p className="text-xs text-red-400">{errors[key]}</p>
-        )}
+        {errors[key] && <p className="text-xs text-red-400">{errors[key]}</p>}
       </div>
     );
   }
@@ -152,11 +152,14 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
   function renderCountryOption(country: Country) {
     const entry = countryEntries.find((item) => item.country === country);
     const name = entry?.name ?? country;
-    const callingCode = entry?.callingCode ?? `+${getCountryCallingCode(country)}`;
+    const callingCode =
+      entry?.callingCode ?? `+${getCountryCallingCode(country)}`;
     return (
       <div className="flex items-center justify-between gap-3">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="text-base leading-none">{getFlagEmoji(country)}</span>
+          <span className="text-base leading-none">
+            {getFlagEmoji(country)}
+          </span>
           <span className="truncate">{name}</span>
         </span>
         <span className="shrink-0 text-xs font-semibold tracking-wide text-[var(--accent-soft)]">
@@ -194,15 +197,15 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
               onClick={() => setCountryMenuOpen((open) => !open)}
               className={cn(
                 "flex h-12 w-full items-center gap-2 rounded-xl border bg-[var(--bg-secondary)] px-3 text-left text-[var(--text-primary)] shadow-none transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/35",
-                errors.phone
-                  ? "border-red-500"
-                  : "border-[var(--border)]",
+                errors.phone ? "border-red-500" : "border-[var(--border)]",
               )}
             >
               <span className="text-base leading-none">
                 {getFlagEmoji(selectedCountry)}
               </span>
-              <span className="min-w-0 flex-1 truncate">{selectedCountryLabel}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {selectedCountryLabel}
+              </span>
               <span className="text-xs font-semibold tracking-wide text-[var(--accent-soft)]">
                 {selectedCallingCode}
               </span>
@@ -230,25 +233,26 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
                 </div>
 
                 <div className="max-h-72 overflow-x-hidden overflow-y-auto p-2">
-                  {!countryQuery && filteredCountryEntries.preferred.length > 0 && (
-                    <div className="mb-2">
-                      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
-                        Common
-                      </p>
-                      <div className="space-y-1">
-                        {filteredCountryEntries.preferred.map((entry) => (
-                          <button
-                            key={`preferred-${entry.country}`}
-                            type="button"
-                            onClick={() => selectCountry(entry.country)}
-                            className="flex w-full items-center rounded-xl px-2 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-white/8"
-                          >
-                            {renderCountryOption(entry.country)}
-                          </button>
-                        ))}
+                  {!countryQuery &&
+                    filteredCountryEntries.preferred.length > 0 && (
+                      <div className="mb-2">
+                        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
+                          Common
+                        </p>
+                        <div className="space-y-1">
+                          {filteredCountryEntries.preferred.map((entry) => (
+                            <button
+                              key={`preferred-${entry.country}`}
+                              type="button"
+                              onClick={() => selectCountry(entry.country)}
+                              className="flex w-full items-center rounded-xl px-2 py-2 text-left text-sm text-[var(--text-primary)] transition-colors hover:bg-white/8"
+                            >
+                              {renderCountryOption(entry.country)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div>
                     <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--text-secondary)]">
@@ -305,9 +309,7 @@ export function CustomerForm({ onSubmit, isLoading = false }: CustomerFormProps)
             />
           </div>
         </div>
-        {errors.phone && (
-          <p className="text-xs text-red-400">{errors.phone}</p>
-        )}
+        {errors.phone && <p className="text-xs text-red-400">{errors.phone}</p>}
       </div>
 
       <button
