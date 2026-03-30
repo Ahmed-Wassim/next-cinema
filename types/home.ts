@@ -54,6 +54,8 @@ export interface ShowtimeSeat {
   rotation?: number | string;
   shape?: string;
   status: SeatStatus;
+  price?: number | string | null;
+  currency?: string | null;
   price_tier?: PriceTier | null;
   [key: string]: unknown;
 }

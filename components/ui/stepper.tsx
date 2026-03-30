@@ -9,7 +9,8 @@ interface StepperProps {
 
 export function Stepper({ steps, currentStepIndex }: StepperProps) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 sm:p-5">
+    <div className="relative overflow-hidden rounded-[26px] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-4 shadow-[0_20px_50px_rgba(2,6,23,0.28)] sm:p-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       <div className="flex items-center justify-between gap-2">
         {steps.map((label, index) => {
           const isDone = index < currentStepIndex;
@@ -18,20 +19,20 @@ export function Stepper({ steps, currentStepIndex }: StepperProps) {
             <div key={label} className="flex-1 min-w-0">
               <div
                 className={cn(
-                  "mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold",
+                  "mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold transition-all duration-300",
                   isDone
-                    ? "border-emerald-400 bg-emerald-500/20 text-emerald-300"
+                    ? "border-emerald-400/50 bg-emerald-500/18 text-emerald-200 shadow-[0_0_18px_rgba(16,185,129,0.18)]"
                     : isCurrent
-                      ? "border-amber-500 bg-amber-500/20 text-amber-300"
-                      : "border-zinc-700 bg-zinc-800 text-zinc-400",
+                      ? "cinema-ring border-[var(--accent)]/55 bg-[var(--accent)]/14 text-[var(--accent-soft)]"
+                      : "border-white/8 bg-white/5 text-[var(--text-muted)]",
                 )}
               >
                 {index + 1}
               </div>
               <p
                 className={cn(
-                  "text-center text-[11px] font-medium leading-tight",
-                  isDone || isCurrent ? "text-white" : "text-zinc-500",
+                  "text-center text-[11px] font-medium leading-tight transition-colors duration-300",
+                  isDone || isCurrent ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]",
                 )}
               >
                 {label}
@@ -40,9 +41,9 @@ export function Stepper({ steps, currentStepIndex }: StepperProps) {
           );
         })}
       </div>
-      <div className="relative mt-2 h-1 w-full bg-zinc-800 rounded-full">
+      <div className="relative mt-3 h-1.5 w-full rounded-full bg-white/8">
         <div
-          className="absolute left-0 top-0 h-1 rounded-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all"
+          className="absolute left-0 top-0 h-1.5 rounded-full bg-gradient-to-r from-[var(--accent)] via-[var(--accent-hover)] to-emerald-400 transition-all duration-500"
           style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
         />
       </div>

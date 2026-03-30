@@ -80,10 +80,10 @@ export function ShowtimePicker({
               key={b}
               onClick={() => handleBranchChange(b)}
               className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                "rounded-full border px-4 py-2 text-sm font-medium transition-all duration-300",
                 activeBranch === b
-                  ? "bg-[var(--accent)] text-black shadow-md shadow-[var(--accent)]/30"
-                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]",
+                  ? "cinema-ring border-[var(--accent)]/40 bg-[var(--accent)]/12 text-[var(--text-primary)]"
+                  : "border-white/8 bg-white/5 text-[var(--text-secondary)] hover:-translate-y-0.5 hover:border-[var(--accent)]/24 hover:bg-black/10 hover:text-[var(--text-primary)]",
               )}
             >
               {b}
@@ -103,10 +103,10 @@ export function ShowtimePicker({
               key={d}
               onClick={() => setActiveDate(d)}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                "rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                 activeDate === d
-                  ? "bg-[var(--bg-primary)] text-[var(--text-primary)]"
-                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]",
+                  ? "border-[var(--accent)]/35 bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-[0_12px_30px_rgba(2,6,23,0.2)]"
+                  : "border-white/8 bg-white/5 text-[var(--text-secondary)] hover:-translate-y-0.5 hover:border-[var(--accent)]/24 hover:bg-black/10 hover:text-[var(--text-primary)]",
               )}
             >
               {formatDate(d)}
@@ -123,7 +123,7 @@ export function ShowtimePicker({
         {slots.length === 0 ? (
           <p className="text-[var(--text-secondary)] text-sm">No showtimes on this date.</p>
         ) : (
-          <div className="flex flex-wrap gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {slots.map((s) => (
               <button
                 key={s.id}
@@ -131,28 +131,35 @@ export function ShowtimePicker({
                   if (onSelectShowtime) onSelectShowtime(s.id);
                 }}
                 className={cn(
-                  "group relative overflow-hidden rounded-xl border px-5 py-3 text-sm font-semibold transition-all",
+                  "group relative overflow-hidden rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-all duration-300",
                   selectedShowtimeId === s.id
-                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--text-primary)] shadow-[0_0_15px_var(--accent-shadow)]"
-                    : "border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--accent)]/60 hover:bg-[var(--bg-primary)] hover:text-[var(--text-primary)]",
+                    ? "cinema-ring border-[var(--accent)]/45 bg-[var(--accent)]/10 text-[var(--text-primary)]"
+                    : "border-white/8 bg-white/5 text-[var(--text-secondary)] hover:-translate-y-1 hover:border-[var(--accent)]/35 hover:bg-black/10 hover:text-[var(--text-primary)]",
                 )}
               >
-                <span className="relative z-10">
-                  {formatTime(s.start_time)}
-                </span>
-                {s.available_seats !== undefined && (
-                  <span
-                    className={cn(
-                      "relative z-10 ml-2 text-xs font-normal",
-                      s.available_seats > 0 ? "text-green-400" : "text-red-400",
-                    )}
-                  >
-                    {s.available_seats > 0
-                      ? `${s.available_seats} left`
-                      : "Full"}
-                  </span>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent)]/0 to-[var(--accent)]/0 group-hover:from-[var(--accent)]/10 group-hover:to-[var(--accent)]/5 transition-all duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/0 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:from-[var(--accent)]/14" />
+                <div className="relative z-10 flex items-start justify-between gap-3">
+                  <div>
+                    <span className="block text-lg font-bold text-[var(--text-primary)]">
+                      {formatTime(s.start_time)}
+                    </span>
+                    <span className="mt-1 block text-xs uppercase tracking-[0.22em] text-[var(--text-muted)]">
+                      Showtime
+                    </span>
+                  </div>
+                  {s.available_seats !== undefined && (
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                        s.available_seats > 0
+                          ? "bg-emerald-500/12 text-emerald-300"
+                          : "bg-red-500/12 text-red-300",
+                      )}
+                    >
+                      {s.available_seats > 0 ? `${s.available_seats} left` : "Full"}
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

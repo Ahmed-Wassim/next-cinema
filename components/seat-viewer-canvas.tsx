@@ -363,12 +363,14 @@ export function SeatViewerCanvas({
             {hoveredSeat.col_label || String(hoveredSeat.number || "")}
           </span>
           {hoveredSeat.label && <span className="ml-1 opacity-70">({String(hoveredSeat.label)})</span>}
-          {hoveredSeat.price_tier && (
+          {(hoveredSeat.price_tier || hoveredSeat.price != null) && (
             <span className="ml-2 opacity-80">
-              · {hoveredSeat.price_tier.name}{" "}
-              {typeof hoveredSeat.price_tier.price === "number"
-                ? hoveredSeat.price_tier.price.toFixed(2)
-                : String(hoveredSeat.price_tier.price)}
+              · {hoveredSeat.price_tier?.name ?? "Seat"}{" "}
+              {hoveredSeat.currency ?? hoveredSeat.price_tier?.currency ?? ""}
+              {" "}
+              {typeof (hoveredSeat.price ?? hoveredSeat.price_tier?.price) === "number"
+                ? (hoveredSeat.price ?? hoveredSeat.price_tier?.price)?.toFixed(2)
+                : String(hoveredSeat.price ?? hoveredSeat.price_tier?.price ?? "")}
             </span>
           )}
         </div>

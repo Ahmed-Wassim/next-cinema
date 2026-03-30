@@ -6,7 +6,7 @@ import { ShowtimePicker } from "@/components/home/ShowtimePicker";
 import { SeatMap } from "@/components/home/SeatMap";
 import { getShowtimeSeats, reserveSeats } from "@/services/homeService";
 import type { GroupedShowtimes, ShowtimeSeat } from "@/types/home";
-import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Stepper } from "@/components/ui/stepper";
 import { ToastContainer, ToastItem } from "@/components/ui/toast";
@@ -28,6 +28,12 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [clearSelectionSignal, setClearSelectionSignal] = useState(0);
+
+  const getSeatPrice = (seat: ShowtimeSeat) =>
+    Number(seat.price ?? seat.price_tier?.price ?? 0);
+
+  const getSeatCurrency = (seat?: ShowtimeSeat | null) =>
+    seat?.currency ?? seat?.price_tier?.currency ?? "USD";
 
   useEffect(() => {
     const lastId = Number(window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0");
@@ -66,12 +72,11 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
   }, [selectedShowtimeId]);
 
   const selectedTotal = useMemo(
-    () =>
-      selectedSeats.reduce((sum, seat) => sum + Number(seat.price_tier?.price || 0), 0),
+    () => selectedSeats.reduce((sum, seat) => sum + getSeatPrice(seat), 0),
     [selectedSeats],
   );
 
-  const selectedCurrency = selectedSeats[0]?.price_tier?.currency ?? "USD";
+  const selectedCurrency = getSeatCurrency(selectedSeats[0]);
 
   const selectedStep = steps[activeStep];
 
@@ -126,7 +131,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)]/70 p-6">
+      <div className="cinema-surface rounded-[30px] p-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{selectedStep}</h2>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">Premium experience, step {activeStep + 1} of {steps.length}.</p>
         <Stepper steps={steps} currentStepIndex={activeStep} />
@@ -138,10 +143,10 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <div className="rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+        <div className="cinema-surface rounded-[30px] p-5">
           {activeStep === 0 && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/30 p-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                 <p className="text-sm font-semibold text-[var(--accent)]">Step 1: Showtime</p>
                 <p className="text-sm text-[var(--text-secondary)]">Pick your preferred date, location, and time slot.</p>
               </div>
@@ -160,7 +165,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
 
           {activeStep === 1 && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/30 p-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                 <p className="text-sm font-semibold text-[var(--accent)]">Step 2: Seats</p>
                 <p className="text-sm text-[var(--text-secondary)]">Tap seats to select. Premium seats glow and show exactly what you get.</p>
               </div>
@@ -172,7 +177,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
                   ))}
                 </div>
               ) : error ? (
-                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
+                <div className="rounded-[24px] border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
                   <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4" />{error}</div>
                 </div>
               ) : (
@@ -188,17 +193,17 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
 
           {activeStep === 2 && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/30 p-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                 <p className="text-sm font-semibold text-[var(--accent)]">Step 3: Confirm & Pay</p>
                 <p className="text-sm text-[var(--text-secondary)]">Review your seats and complete payment with the secure flow.</p>
               </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-primary)]/20 p-4 space-y-3">
+              <div className="rounded-[24px] border border-white/8 bg-black/10 p-4 space-y-3">
                 <p className="text-sm text-[var(--text-secondary)]">Selected seats: {selectedSeats.length}</p>
                 <ul className="space-y-1 text-sm text-[var(--text-primary)]">
                   {selectedSeats.map((seat) => (
-                    <li key={seat.id} className="flex items-center justify-between rounded-lg bg-[var(--bg-secondary)]/50 px-3 py-2">
+                    <li key={seat.id} className="flex items-center justify-between rounded-xl bg-white/6 px-3 py-2 transition-colors duration-300 hover:bg-white/10">
                       <span>{seat.row_label ?? seat.row ?? "?"}{seat.col_label ?? seat.number ?? ""}</span>
-                      <span>{selectedCurrency} {Number(seat.price_tier?.price || 0).toFixed(2)}</span>
+                      <span>{getSeatCurrency(seat)} {getSeatPrice(seat).toFixed(2)}</span>
                     </li>
                   ))}
                 </ul>
@@ -211,7 +216,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
           )}
         </div>
 
-        <aside className="rounded-3xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
+        <aside className="cinema-surface rounded-[30px] p-5">
           <h3 className="text-lg font-bold text-[var(--text-primary)]">Quick Review</h3>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{selectedStep} ready</p>
           <div className="mt-4 space-y-2 text-sm text-[var(--text-secondary)]">
@@ -224,10 +229,10 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
               onClick={proceedToNext}
               disabled={(activeStep === 0 && !selectedShowtimeId) || (activeStep === 1 && selectedSeats.length === 0) || activeStep === 2}
               className={cn(
-                "rounded-xl px-4 py-3 text-sm font-semibold transition",
+                "rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300",
                 (activeStep === 0 && selectedShowtimeId) || (activeStep === 1 && selectedSeats.length > 0)
-                  ? "bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]"
-                  : "bg-[var(--border)] text-[var(--text-secondary)] cursor-not-allowed",
+                  ? "cinema-ring bg-[var(--accent)] text-black hover:-translate-y-0.5 hover:bg-[var(--accent-hover)]"
+                  : "bg-white/8 text-[var(--text-secondary)] cursor-not-allowed",
               )}
             >
               {activeStep === 2 ? "Ready for Payment" : `Proceed to ${steps[activeStep + 1]}`}
@@ -236,7 +241,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
 
             <button
               onClick={activeStep > 0 ? goBack : undefined}
-              className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-primary)]"
+              className="rounded-2xl border border-white/8 px-4 py-3 text-sm font-medium text-[var(--text-secondary)] transition-all duration-300 hover:bg-white/6 enabled:hover:-translate-y-0.5"
               disabled={activeStep === 0}
             >
               Back
@@ -246,7 +251,7 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
               <button
                 onClick={handleReserve}
                 disabled={isReserving || selectedSeats.length === 0}
-                className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-black hover:bg-emerald-400 disabled:opacity-50"
+                className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-black transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-400 disabled:opacity-50"
               >
                 {isReserving ? (
                   <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reserving...</span>
