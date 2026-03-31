@@ -7,7 +7,6 @@ import type {
 
 export interface SeatGridConfig {
   hall_id: number;
-  section_id: number;
   price_tier_id: number;
   row_count: number;
   seats_per_row: number;
@@ -71,7 +70,6 @@ export function generateBulkSeatsFromGrid(cfg: SeatGridConfig): BulkSeatItem[] {
 
       seats.push({
         hall_id: cfg.hall_id,
-        section_id: cfg.section_id,
         price_tier_id: cfg.price_tier_id,
         row,
         number,
@@ -91,7 +89,9 @@ export function generateBulkSeatsFromGrid(cfg: SeatGridConfig): BulkSeatItem[] {
 }
 
 /** Build rows + positions from current uniform settings (for switching to custom mode). */
-export function customRowsFromUniformGrid(cfg: SeatGridConfig): CustomRowInput[] {
+export function customRowsFromUniformGrid(
+  cfg: SeatGridConfig,
+): CustomRowInput[] {
   const rows: CustomRowInput[] = [];
   for (let r = 0; r < cfg.row_count; r++) {
     const row = rowLabel(r, cfg.row_start_letter);
@@ -132,7 +132,9 @@ export function guessUniformFromCustomRows(
   const first = rows[0]!;
   const last = rows[rows.length - 1]!;
   const dy =
-    rows.length > 1 ? (last.start_pos_y - first.start_pos_y) / (rows.length - 1) : 5;
+    rows.length > 1
+      ? (last.start_pos_y - first.start_pos_y) / (rows.length - 1)
+      : 5;
 
   return {
     row_count: rows.length,
@@ -152,7 +154,6 @@ export function guessUniformFromCustomRows(
  */
 export function generateBulkSeatsFromCustomRows(payload: {
   hall_id: number;
-  section_id: number;
   default_price_tier_id: number;
   rows: CustomRowInput[];
   seat_number_start: number;
@@ -179,7 +180,6 @@ export function generateBulkSeatsFromCustomRows(payload: {
 
       seats.push({
         hall_id: payload.hall_id,
-        section_id: payload.section_id,
         price_tier_id: tier,
         row: label,
         number: String(num++),

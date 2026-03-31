@@ -1,7 +1,7 @@
-/** Payload item for POST /seats/bulk (matches dashboard API). */
+/** Payload item for POST /halls/{hall}/seats/bulk (matches dashboard API). */
 export interface BulkSeatItem {
-  hall_id: number;
-  section_id: number;
+  hall_id?: number; // Optional in state, omitted in final payload
+  id?: number; // Required for updates, omitted for inserts
   price_tier_id: number;
   row: string;
   number: string;

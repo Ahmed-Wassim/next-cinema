@@ -5,17 +5,13 @@ export const LAYOUT_DRAFT_STORAGE_KEY = "cinema_layout_draft_v1";
 export type LayoutDraftV1 = {
   v: 1;
   hallId: number;
-  sectionId: number;
   tierId: number;
   seats: BulkSeatItem[];
 };
 
 export function saveLayoutDraft(draft: Omit<LayoutDraftV1, "v">) {
   const payload: LayoutDraftV1 = { v: 1, ...draft };
-  sessionStorage.setItem(
-    LAYOUT_DRAFT_STORAGE_KEY,
-    JSON.stringify(payload),
-  );
+  sessionStorage.setItem(LAYOUT_DRAFT_STORAGE_KEY, JSON.stringify(payload));
 }
 
 export function consumeLayoutDraft(): LayoutDraftV1 | null {

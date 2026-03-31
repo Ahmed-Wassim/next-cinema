@@ -35,15 +35,15 @@ import {
 import { SeatViewerCanvas } from "@/components/seat-viewer-canvas";
 import { SeatsSubnav } from "@/components/seats-subnav";
 import { extractPaginated } from "@/lib/extract-paginated";
-import { getHallSections } from "@/services/hallSectionService";
-import type { DesignerBounds } from "@/types/designer-types";
 import {
   createSeat,
   deleteSeat,
   getSeats,
   updateSeat,
 } from "@/services/seatService";
-import type { HallSection } from "@/types/hall-section";
+import { getHalls } from "@/services/hallService";
+import type { DesignerBounds } from "@/types/designer-types";
+import type { Hall } from "@/types/hall";
 import type { PaginationMeta } from "@/types/pagination";
 import type { Seat } from "@/types/seat";
 
@@ -57,7 +57,7 @@ const MAP_WORKSPACE_WIDTH = 820;
 const MAP_WORKSPACE_HEIGHT = 560;
 
 type SeatFormValues = {
-  hall_section_id: number;
+  hall_id: number;
   row_label: string;
   col_label: string;
   label: string;
@@ -69,7 +69,7 @@ export default function SeatsPage() {
     () => ({ x: 0, y: 0, width: 600, height: 400 }),
     [],
   );
-  const [sections, setSections] = useState<HallSection[]>([]);
+  const [halls, setHalls] = useState<Hall[]>([]);
   const [rows, setRows] = useState<Seat[]>([]);
   const [meta, setMeta] = useState<PaginationMeta>(emptyMeta);
   const [page, setPage] = useState(1);
@@ -78,11 +78,11 @@ export default function SeatsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<"table" | "map">("table");
-  const [filterSectionId, setFilterSectionId] = useState<number>(0);
+  const [filterHallId, setFilterHallId] = useState<number>(0);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createValues, setCreateValues] = useState<SeatFormValues>({
-    hall_section_id: 0,
+    hall_id: 0,
     row_label: "",
     col_label: "",
     label: "",
@@ -93,11 +93,11 @@ export default function SeatsPage() {
   const [deleting, setDeleting] = useState<Seat | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const sectionLabelById = useMemo(() => {
+  const hallLabelById = useMemo(() => {
     const m = new Map<number, string>();
-    sections.forEach((s) => m.set(s.id, s.name));
+    halls.forEach((h) => m.set(h.id, h.name));
     return m;
-  }, [sections]);
+  }, [halls]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,7 +111,7 @@ export default function SeatsPage() {
           const res = await getSeats({
             page: current,
             per_page: 500, // Safe bulk chunk to avoid massive payloads
-            hall_section_id: filterSectionId || undefined,
+            hall_id: filterHallId || undefined,
           });
           const { data, meta: m } = extractPaginated<Seat>(res);
           all = all.concat(data);
@@ -122,7 +122,11 @@ export default function SeatsPage() {
         setRows(all);
         setMeta(fetchedMeta || emptyMeta);
       } else {
-        const res = await getSeats({ page, per_page: perPage, hall_section_id: filterSectionId || undefined });
+        const res = await getSeats({
+          page,
+          per_page: perPage,
+          hall_id: filterHallId || undefined,
+        });
         const { data, meta: m } = extractPaginated<Seat>(res);
         setRows(data);
         setMeta(m);
@@ -133,14 +137,14 @@ export default function SeatsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, viewMode, filterSectionId]);
+  }, [page, perPage, viewMode, filterHallId]);
 
   useEffect(() => {
     void (async () => {
       try {
-        const res = await getHallSections({ per_page: 500 });
-        const { data } = extractPaginated<HallSection>(res);
-        setSections(data);
+        const res = await getHalls({ per_page: 500 });
+        const { data } = extractPaginated<Hall>(res);
+        setHalls(data);
       } catch {
         /* labels */
       }
@@ -148,24 +152,22 @@ export default function SeatsPage() {
   }, []);
 
   useEffect(() => {
-    if (sections.length > 0) {
+    if (halls.length > 0) {
       setCreateValues((v) =>
-        v.hall_section_id === 0
-          ? { ...v, hall_section_id: sections[0]!.id }
-          : v,
+        v.hall_id === 0 ? { ...v, hall_id: halls[0]!.id } : v,
       );
     }
-  }, [sections]);
+  }, [halls]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    if (viewMode === "map" && !filterSectionId && sections.length > 0) {
-      setFilterSectionId(sections[0]!.id);
+    if (viewMode === "map" && !filterHallId && halls.length > 0) {
+      setFilterHallId(halls[0]!.id);
     }
-  }, [viewMode, filterSectionId, sections]);
+  }, [viewMode, filterHallId, halls]);
 
   function buildSeatPayload(v: SeatFormValues): Omit<Seat, "id"> {
     const label =
@@ -173,7 +175,7 @@ export default function SeatsPage() {
       [v.row_label.trim(), v.col_label.trim()].filter(Boolean).join("") ||
       `${v.row_label}-${v.col_label}`.replace(/^-|-$/g, "");
     return {
-      hall_section_id: v.hall_section_id,
+      hall_id: v.hall_id,
       row_label: v.row_label || undefined,
       col_label: v.col_label || undefined,
       label: label || undefined,
@@ -183,15 +185,15 @@ export default function SeatsPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!createValues.hall_section_id) {
-      setError("Pick a hall section.");
+    if (!createValues.hall_id) {
+      setError("Pick a hall.");
       return;
     }
     try {
       await createSeat(buildSeatPayload(createValues));
       setCreateOpen(false);
       setCreateValues({
-        hall_section_id: sections[0]?.id ?? 0,
+        hall_id: halls[0]?.id ?? 0,
         row_label: "",
         col_label: "",
         label: "",
@@ -208,7 +210,7 @@ export default function SeatsPage() {
     if (!editing) return;
     try {
       await updateSeat(editing.id, {
-        hall_section_id: editing.hall_section_id,
+        hall_id: editing.hall_id,
         row_label: editing.row_label,
         col_label: editing.col_label,
         label: editing.label,
@@ -287,23 +289,23 @@ export default function SeatsPage() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label>Hall section</Label>
+                  <Label>Hall</Label>
                   <Select
-                    value={String(createValues.hall_section_id || "")}
+                    value={String(createValues.hall_id || "")}
                     onValueChange={(v) =>
                       setCreateValues((s) => ({
                         ...s,
-                        hall_section_id: Number(v),
+                        hall_id: Number(v),
                       }))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select section" />
+                      <SelectValue placeholder="Select hall" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sections.map((s) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.name}
+                      {halls.map((h) => (
+                        <SelectItem key={h.id} value={String(h.id)}>
+                          {h.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -368,20 +370,20 @@ export default function SeatsPage() {
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2">
         <div className="flex items-center gap-2">
           <Select
-            value={filterSectionId ? String(filterSectionId) : "all"}
+            value={filterHallId ? String(filterHallId) : "all"}
             onValueChange={(v) => {
-              setFilterSectionId(v === "all" ? 0 : Number(v));
+              setFilterHallId(v === "all" ? 0 : Number(v));
               setPage(1);
             }}
           >
             <SelectTrigger className="w-[200px] h-9 text-sm">
-              <SelectValue placeholder="All Sections" />
+              <SelectValue placeholder="All Halls" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Sections</SelectItem>
-              {sections.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.name}
+              <SelectItem value="all">All Halls</SelectItem>
+              {halls.map((h) => (
+                <SelectItem key={h.id} value={String(h.id)}>
+                  {h.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -417,15 +419,19 @@ export default function SeatsPage() {
       {loading ? (
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : viewMode === "map" ? (
-        filterSectionId === 0 ? (
+        filterHallId === 0 ? (
           <div className="py-20 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
             <LayoutGrid className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">Please select a Section to view its seat map.</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Please select a Hall to view its seat map.
+            </p>
           </div>
         ) : rows.length === 0 ? (
           <div className="py-20 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">
             <LayoutGrid className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">No seats found in this section.</p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              No seats found in this hall.
+            </p>
           </div>
         ) : (
           <div className="overflow-auto rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/40">
@@ -455,7 +461,7 @@ export default function SeatsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Section</TableHead>
+                <TableHead>Hall</TableHead>
                 <TableHead>Seat</TableHead>
                 <TableHead>Row</TableHead>
                 <TableHead>Col</TableHead>
@@ -466,8 +472,7 @@ export default function SeatsPage() {
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
-                    {sectionLabelById.get(r.hall_section_id) ??
-                      r.hall_section_id}
+                    {hallLabelById.get(r.hall_id) ?? r.hall_id}
                   </TableCell>
                   <TableCell className="font-medium">
                     {displaySeatLabel(r)}
@@ -525,22 +530,20 @@ export default function SeatsPage() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label>Section</Label>
+                  <Label>Hall</Label>
                   <Select
-                    value={String(editing.hall_section_id)}
+                    value={String(editing.hall_id)}
                     onValueChange={(v) =>
-                      setEditing((s) =>
-                        s ? { ...s, hall_section_id: Number(v) } : s,
-                      )
+                      setEditing((s) => (s ? { ...s, hall_id: Number(v) } : s))
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select section" />
+                      <SelectValue placeholder="Select hall" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sections.map((s) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.name}
+                      {halls.map((h) => (
+                        <SelectItem key={h.id} value={String(h.id)}>
+                          {h.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

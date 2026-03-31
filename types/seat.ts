@@ -2,9 +2,7 @@ import type { PriceTier } from "@/types/price-tier";
 
 export interface Seat {
   id: number;
-  hall_section_id: number;
-  hall_id?: number;
-  section_id?: number;
+  hall_id: number;
   price_tier_id?: number;
   price_tier?: PriceTier | null;
   row_label?: string;

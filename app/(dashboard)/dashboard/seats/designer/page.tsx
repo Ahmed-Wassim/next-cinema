@@ -11,14 +11,12 @@ import { Button } from "@/components/ui/button";
 import { consumeLayoutDraft } from "@/lib/layout-draft";
 import { extractPaginated } from "@/lib/extract-paginated";
 import { generateBulkSeatsFromCustomRows } from "@/lib/generate-bulk-seats";
-import { getHallSections } from "@/services/hallSectionService";
 import { getHalls } from "@/services/hallService";
 import { getPriceTiers } from "@/services/priceTierService";
 import { bulkInsertSeats, getSeats } from "@/services/seatService";
 import type { Hall } from "@/types/hall";
 import type { Seat } from "@/types/seat";
 import type { BulkSeatItem } from "@/types/seat-bulk";
-import type { HallSection } from "@/types/hall-section";
 import type { PriceTier } from "@/types/price-tier";
 import type { LayoutSeat } from "@/types/seat-layout";
 import { stripLayoutKey, withLayoutKeys } from "@/types/seat-layout";
@@ -37,13 +35,12 @@ const DESIGNER_BOUNDS_HEIGHT = 400;
 
 function seatApiToBulkSeatItem(
   seat: Seat,
-  ctx: { hallId: number; sectionId: number; fallbackTierId: number },
+  ctx: { hallId: number; fallbackTierId: number },
 ): BulkSeatItem & { id?: number } {
   const s = seat as Record<string, unknown>;
   return {
     id: typeof s.id === "number" ? s.id : undefined,
     hall_id: ctx.hallId,
-    section_id: ctx.sectionId,
     price_tier_id: (typeof s.price_tier_id === "number"
       ? (s.price_tier_id as number)
       : ctx.fallbackTierId) as number,
@@ -95,11 +92,9 @@ export default function SeatDesignerPage() {
 
   /* ---- Reference data ---- */
   const [halls, setHalls] = useState<Hall[]>([]);
-  const [sections, setSections] = useState<HallSection[]>([]);
   const [tiers, setTiers] = useState<PriceTier[]>([]);
 
   const [hallId, setHallId] = useState(0);
-  const [sectionId, setSectionId] = useState(0);
   const [tierId, setTierId] = useState(0);
 
   /* ---- Canvas state & History ---- */
@@ -324,16 +319,14 @@ export default function SeatDesignerPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [hRes, secRes, tRes] = await Promise.all([
+        const [hRes, tRes] = await Promise.all([
           getHalls({ per_page: 500 }),
-          getHallSections({ per_page: 500 }),
           getPriceTiers({ per_page: 500 }),
         ]);
         setHalls(extractPaginated<Hall>(hRes).data);
-        setSections(extractPaginated<HallSection>(secRes).data);
         setTiers(extractPaginated<PriceTier>(tRes).data);
       } catch {
-        setError("Could not load halls, sections, or tiers.");
+        setError("Could not load halls or tiers.");
       }
     })();
   }, [designerBounds]);
@@ -343,62 +336,50 @@ export default function SeatDesignerPage() {
     const draft = consumeLayoutDraft();
     if (!draft) return;
     setHallId(draft.hallId);
-    setSectionId(draft.sectionId);
     setTierId(draft.tierId);
     const layoutSts = withLayoutKeys(draft.seats);
     setSeats(alignSeatsBottomCenter(layoutSts));
     setDraftLoaded(true);
     setMessage("Loaded layout draft from the seat builder.");
-  }, [fitToView, alignSeatsBottomCenter]);
+  }, [alignSeatsBottomCenter]);
 
   const loadExistingSeats = useCallback(async () => {
-    if (!sectionId || !hallId) return;
+    if (!hallId) return;
     setError(null);
     setMessage(null);
     setLoadingExisting(true);
     try {
       const res = await getSeats({
-        hall_section_id: sectionId,
+        hall_id: hallId,
         per_page: 1000,
       });
       const data = extractPaginated<Seat>(res).data;
       const bulk = data.map((s) =>
         seatApiToBulkSeatItem(s, {
           hallId,
-          sectionId,
           fallbackTierId: tierId || 0,
         }),
       );
       const layout = withLayoutKeys(bulk);
       handleSeatsChange(alignSeatsBottomCenter(layout));
       setHasSubmitted(true); // this mirrors server state
-      setMessage(`Loaded ${layout.length} existing seats for this section.`);
+      setMessage(`Loaded ${layout.length} existing seats for this hall.`);
     } catch {
-      setError("Could not load existing seats for this section.");
+      setError("Could not load existing seats for this hall.");
     } finally {
       setLoadingExisting(false);
     }
-  }, [
-    sectionId,
-    hallId,
-    tierId,
-    handleSeatsChange,
-    alignSeatsBottomCenter,
-  ]);
+  }, [hallId, tierId, handleSeatsChange, alignSeatsBottomCenter]);
 
   /* ---- Auto-load existing seats (only when empty, and no draft handoff) ---- */
   useEffect(() => {
-    if (!hallId || !sectionId) return;
+    if (!hallId) return;
     if (draftLoaded) return;
     if (seatsRef.current.length > 0) return;
     void loadExistingSeats();
-  }, [hallId, sectionId, draftLoaded, loadExistingSeats]);
+  }, [hallId, draftLoaded, loadExistingSeats]);
 
-  /* ---- Derived: sections & tiers for selected hall ---- */
-  const sectionsForHall = useMemo(
-    () => sections.filter((s) => s.hall_id === hallId),
-    [sections, hallId],
-  );
+  /* ---- Derived: tiers for selected hall ---- */
   const tiersForHall = useMemo(
     () => tiers.filter((t) => t.hall_id === hallId),
     [tiers, hallId],
@@ -408,15 +389,6 @@ export default function SeatDesignerPage() {
   useEffect(() => {
     if (halls.length && !hallId) setHallId(halls[0]!.id);
   }, [halls, hallId]);
-
-  useEffect(() => {
-    if (hallId && sectionsForHall.length) {
-      const ok = sectionsForHall.some((s) => s.id === sectionId);
-      if (!ok) setSectionId(sectionsForHall[0]!.id);
-    } else {
-      setSectionId(0);
-    }
-  }, [hallId, sectionsForHall, sectionId]);
 
   useEffect(() => {
     if (hallId && tiersForHall.length) {
@@ -449,8 +421,8 @@ export default function SeatDesignerPage() {
   const handleSubmit = useCallback(async () => {
     setError(null);
     setMessage(null);
-    if (!hallId || !sectionId || !tierId) {
-      setError("Select hall, section, and tier.");
+    if (!hallId || !tierId) {
+      setError("Select hall and tier.");
       return;
     }
     if (seats.length === 0) {
@@ -460,7 +432,7 @@ export default function SeatDesignerPage() {
     setSubmitting(true);
     try {
       const payload = seats.map(stripLayoutKey);
-      await bulkInsertSeats(payload);
+      await bulkInsertSeats(hallId, payload);
       setMessage(`Created ${payload.length} seats via bulk API.`);
       setHasSubmitted(true);
     } catch (e: unknown) {
@@ -472,12 +444,12 @@ export default function SeatDesignerPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [hallId, sectionId, tierId, seats]);
+  }, [hallId, tierId, seats]);
 
   /* ---- Example Layout ---- */
   function loadExampleLayout() {
-    if (!hallId || !sectionId || !tierId) {
-      setError("Select hall, section, and tier first.");
+    if (!hallId || !tierId) {
+      setError("Select hall and tier first.");
       return;
     }
     setError(null);
@@ -557,7 +529,6 @@ export default function SeatDesignerPage() {
     ];
     const generated = generateBulkSeatsFromCustomRows({
       hall_id: hallId,
-      section_id: sectionId,
       default_price_tier_id: tierId,
       rows: draftRows,
       seat_number_start: 1,
@@ -600,9 +571,7 @@ export default function SeatDesignerPage() {
           <Button
             type="button"
             className="gap-1.5"
-            disabled={
-              submitting || !hallId || !sectionId || !tierId || hasSubmitted
-            }
+            disabled={submitting || !hallId || !tierId || hasSubmitted}
             onClick={() => void handleSubmit()}
           >
             <Send className="h-3.5 w-3.5" />
@@ -616,7 +585,7 @@ export default function SeatDesignerPage() {
             type="button"
             variant="outline"
             className="text-zinc-600 dark:text-zinc-400"
-            disabled={loadingExisting || !hallId || !sectionId}
+            disabled={loadingExisting || !hallId}
             onClick={() => void loadExistingSeats()}
           >
             {loadingExisting ? "Loading…" : "Load existing seats"}
@@ -672,7 +641,6 @@ export default function SeatDesignerPage() {
                 snapEnabled={snapEnabled}
                 snapStep={snapStep}
                 hallId={hallId}
-                sectionId={sectionId}
                 defaultTierId={tierId}
                 paintTierId={paintTierId}
                 nextRowLabel={nextRowLabel}
@@ -686,15 +654,11 @@ export default function SeatDesignerPage() {
           </div>
           <SeatDesignerSidebar
             halls={halls}
-            sections={sections}
             tiers={tiers}
             hallId={hallId}
-            sectionId={sectionId}
             tierId={tierId}
             onHallChange={setHallId}
-            onSectionChange={setSectionId}
             onTierChange={setTierId}
-            sectionsForHall={sectionsForHall}
             tiersForHall={tiersForHall}
             seats={seats}
             onSeatsChange={handleSeatsChange}

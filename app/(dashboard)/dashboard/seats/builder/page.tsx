@@ -53,12 +53,10 @@ import type { SeatGridConfig } from "@/lib/generate-bulk-seats";
 import { saveLayoutDraft } from "@/lib/layout-draft";
 import { extractPaginated } from "@/lib/extract-paginated";
 import { cn } from "@/lib/utils";
-import { getHallSections } from "@/services/hallSectionService";
 import { getHalls } from "@/services/hallService";
 import { getPriceTiers } from "@/services/priceTierService";
 import { bulkInsertSeats } from "@/services/seatService";
 import type { CustomBuilderRow } from "@/types/seat-builder";
-import type { HallSection } from "@/types/hall-section";
 import type { Hall } from "@/types/hall";
 import type { PriceTier } from "@/types/price-tier";
 import type { RowGrowth, SeatNumberingMode } from "@/types/seat-bulk";
@@ -76,11 +74,9 @@ function newId() {
 export default function SeatBuilderPage() {
   const router = useRouter();
   const [halls, setHalls] = useState<Hall[]>([]);
-  const [sections, setSections] = useState<HallSection[]>([]);
   const [tiers, setTiers] = useState<PriceTier[]>([]);
 
   const [hallId, setHallId] = useState(0);
-  const [sectionId, setSectionId] = useState(0);
   const [tierId, setTierId] = useState(0);
 
   const [builderMode, setBuilderMode] = useState<"uniform" | "custom">(
@@ -114,38 +110,22 @@ export default function SeatBuilderPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [hRes, secRes, tRes] = await Promise.all([
+        const [hRes, tRes] = await Promise.all([
           getHalls({ per_page: 500 }),
-          getHallSections({ per_page: 500 }),
           getPriceTiers({ per_page: 500 }),
         ]);
         setHalls(extractPaginated<Hall>(hRes).data);
-        setSections(extractPaginated<HallSection>(secRes).data);
         setTiers(extractPaginated<PriceTier>(tRes).data);
       } catch {
-        setError("Could not load halls, sections, or tiers.");
+        setError("Could not load halls or tiers.");
       }
     })();
   }, []);
-
-  const sectionsForHall = useMemo(
-    () => sections.filter((s) => s.hall_id === hallId),
-    [sections, hallId],
-  );
 
   const tiersForHall = useMemo(
     () => tiers.filter((t) => t.hall_id === hallId),
     [tiers, hallId],
   );
-
-  useEffect(() => {
-    if (hallId && sectionsForHall.length) {
-      const ok = sectionsForHall.some((s) => s.id === sectionId);
-      if (!ok) setSectionId(sectionsForHall[0]!.id);
-    } else {
-      setSectionId(0);
-    }
-  }, [hallId, sectionsForHall, sectionId]);
 
   useEffect(() => {
     if (hallId && tiersForHall.length) {
@@ -163,10 +143,9 @@ export default function SeatBuilderPage() {
   }, [halls, hallId]);
 
   const uniformConfig = useMemo((): SeatGridConfig | null => {
-    if (!hallId || !sectionId || !tierId) return null;
+    if (!hallId || !tierId) return null;
     return {
       hall_id: hallId,
-      section_id: sectionId,
       price_tier_id: tierId,
       row_count: Math.max(1, rowCount),
       seats_per_row: Math.max(1, seatsPerRow),
@@ -187,7 +166,6 @@ export default function SeatBuilderPage() {
     };
   }, [
     hallId,
-    sectionId,
     tierId,
     rowCount,
     seatsPerRow,
@@ -213,7 +191,7 @@ export default function SeatBuilderPage() {
   );
 
   const previewSeats = useMemo(() => {
-    if (!hallId || !sectionId || !tierId) return [];
+    if (!hallId || !tierId) return [];
     try {
       if (builderMode === "uniform") {
         if (!uniformConfig) return [];
@@ -222,7 +200,6 @@ export default function SeatBuilderPage() {
       if (customRows.length === 0) return [];
       return generateBulkSeatsFromCustomRows({
         hall_id: hallId,
-        section_id: sectionId,
         default_price_tier_id: tierId,
         rows: customInputs,
         seat_number_start: Math.max(0, seatNumberStart),
@@ -237,7 +214,6 @@ export default function SeatBuilderPage() {
     }
   }, [
     hallId,
-    sectionId,
     tierId,
     builderMode,
     uniformConfig,
@@ -371,28 +347,31 @@ export default function SeatBuilderPage() {
 
   function openLayoutEditor() {
     if (previewSeats.length === 0) return;
-    saveLayoutDraft({ hallId, sectionId, tierId, seats: previewSeats });
+    saveLayoutDraft({ hallId, tierId, seats: previewSeats });
     router.push("/dashboard/seats/layout");
   }
 
   const handleSubmit = useCallback(async () => {
     setError(null);
     setMessage(null);
-    if (!hallId || !sectionId || !tierId) {
-      setError("Select a hall, section, and price tier.");
+    if (!hallId || !tierId) {
+      setError("Select a hall and price tier.");
       return;
     }
     if (builderMode === "custom" && customRows.length === 0) {
-      setError("Add at least one row in Custom mode, or switch to Uniform grid.");
+      setError(
+        "Add at least one row in Custom mode, or switch to Uniform grid.",
+      );
       return;
     }
     if (previewSeats.length === 0) {
       setError("No seats to create. Check grid settings.");
       return;
     }
+    const payload = previewSeats.map(({ hall_id, ...rest }) => rest);
     setSubmitting(true);
     try {
-      await bulkInsertSeats(previewSeats);
+      await bulkInsertSeats(hallId, payload);
       setMessage(`Created ${previewSeats.length} seats via bulk API.`);
     } catch (e: unknown) {
       setError(
@@ -403,17 +382,14 @@ export default function SeatBuilderPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [hallId, sectionId, tierId, previewSeats, builderMode, customRows.length]);
+  }, [hallId, tierId, previewSeats, builderMode, customRows.length]);
 
   const hallName = halls.find((h) => h.id === hallId)?.name ?? "—";
-  const sectionName =
-    sections.find((s) => s.id === sectionId)?.name ?? "—";
   const tierName = tiers.find((t) => t.id === tierId)?.name ?? "—";
 
   const canSubmit =
     previewSeats.length > 0 &&
     hallId &&
-    sectionId &&
     tierId &&
     (builderMode === "uniform" || customRows.length > 0);
 
@@ -430,9 +406,15 @@ export default function SeatBuilderPage() {
             Custom bulk seat builder
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            Choose a <strong className="font-medium text-zinc-800 dark:text-zinc-200">uniform grid</strong> or{" "}
-            <strong className="font-medium text-zinc-800 dark:text-zinc-200">row-by-row</strong> placement, preview
-            live, then insert or refine in Hall layout.
+            Choose a{" "}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">
+              uniform grid
+            </strong>{" "}
+            or{" "}
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">
+              row-by-row
+            </strong>{" "}
+            placement, preview live, then insert or refine in Hall layout.
           </p>
         </div>
         <div className="hidden shrink-0 flex-col gap-2 sm:flex-row lg:flex">
@@ -500,10 +482,6 @@ export default function SeatBuilderPage() {
             <span className="font-medium text-zinc-900 dark:text-zinc-100">
               {hallName}
             </span>
-            <span className="text-zinc-400">·</span>
-            <span className="text-zinc-700 dark:text-zinc-300">
-              {sectionName}
-            </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {currentTier?.color ? (
@@ -564,12 +542,12 @@ export default function SeatBuilderPage() {
                     Target
                   </CardTitle>
                   <CardDescription>
-                    Hall, section, and default price tier for new seats.
+                    Hall and default price tier for new seats.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
+            <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Hall</Label>
                 <Select
@@ -583,25 +561,6 @@ export default function SeatBuilderPage() {
                     {halls.map((h) => (
                       <SelectItem key={h.id} value={String(h.id)}>
                         {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Section</Label>
-                <Select
-                  value={sectionId ? String(sectionId) : ""}
-                  onValueChange={(v) => setSectionId(Number(v))}
-                  disabled={!hallId || sectionsForHall.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sectionsForHall.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>
-                        {s.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -645,7 +604,8 @@ export default function SeatBuilderPage() {
                       Grid &amp; numbering
                     </CardTitle>
                     <CardDescription>
-                      Same seats per row, shared spacing, global numbering rules.
+                      Same seats per row, shared spacing, global numbering
+                      rules.
                     </CardDescription>
                   </div>
                 </div>
@@ -738,7 +698,8 @@ export default function SeatBuilderPage() {
                     onChange={(e) => setMirrorRows(e.target.checked)}
                   />
                   <Label htmlFor="mirror" className="font-normal">
-                    Mirror alternating rows (zig-zag X — pairs well with serpentine)
+                    Mirror alternating rows (zig-zag X — pairs well with
+                    serpentine)
                   </Label>
                 </div>
               </CardContent>
@@ -760,8 +721,9 @@ export default function SeatBuilderPage() {
                         Custom rows
                       </CardTitle>
                       <CardDescription>
-                        Per-row seat count, position, pitch, optional tier override.
-                        Seat numbers use one global counter (see manual).
+                        Per-row seat count, position, pitch, optional tier
+                        override. Seat numbers use one global counter (see
+                        manual).
                       </CardDescription>
                     </div>
                   </div>
@@ -799,110 +761,102 @@ export default function SeatBuilderPage() {
                         <TableHead className="min-w-[5rem]">Step X</TableHead>
                         <TableHead className="w-16">Mirror</TableHead>
                         <TableHead className="min-w-[8rem]">Tier</TableHead>
-                        <TableHead className="w-24 text-right"> </TableHead>
+                        <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {customRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>
+                      {customRows.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="py-2">
                             <Input
-                              className="h-8 min-w-[2.5rem]"
-                              value={row.row}
+                              className="h-8 w-12 px-1 text-center font-bold"
+                              value={r.row}
                               onChange={(e) =>
-                                updateCustomRow(row.id, {
-                                  row: e.target.value,
+                                updateCustomRow(r.id, {
+                                  row: e.target.value.toUpperCase().charAt(0),
                                 })
                               }
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2">
                             <Input
+                              className="h-8 w-14"
                               type="number"
-                              min={0}
+                              min={1}
+                              value={r.seat_count}
+                              onChange={(e) =>
+                                updateCustomRow(r.id, {
+                                  seat_count: Number(e.target.value) || 1,
+                                })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Input
                               className="h-8 w-20"
-                              value={row.seat_count}
-                              onChange={(e) =>
-                                updateCustomRow(row.id, {
-                                  seat_count: Math.max(
-                                    0,
-                                    Number(e.target.value) || 0,
-                                  ),
-                                })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
                               type="number"
-                              step="0.5"
-                              className="h-8 w-24"
-                              value={row.start_pos_x}
+                              value={r.start_pos_x}
                               onChange={(e) =>
-                                updateCustomRow(row.id, {
+                                updateCustomRow(r.id, {
                                   start_pos_x: Number(e.target.value),
                                 })
                               }
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2">
                             <Input
+                              className="h-8 w-20"
                               type="number"
-                              step="0.5"
-                              className="h-8 w-24"
-                              value={row.start_pos_y}
+                              value={r.start_pos_y}
                               onChange={(e) =>
-                                updateCustomRow(row.id, {
+                                updateCustomRow(r.id, {
                                   start_pos_y: Number(e.target.value),
                                 })
                               }
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2">
                             <Input
+                              className="h-8 w-16"
                               type="number"
-                              step="0.5"
-                              className="h-8 w-24"
-                              value={row.step_x}
+                              step={0.5}
+                              value={r.step_x}
                               onChange={(e) =>
-                                updateCustomRow(row.id, {
+                                updateCustomRow(r.id, {
                                   step_x: Number(e.target.value),
                                 })
                               }
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2">
                             <input
                               type="checkbox"
                               className="h-4 w-4 rounded border-zinc-300"
-                              checked={row.mirror}
+                              checked={r.mirror}
                               onChange={(e) =>
-                                updateCustomRow(row.id, {
+                                updateCustomRow(r.id, {
                                   mirror: e.target.checked,
                                 })
                               }
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-2">
                             <Select
                               value={
-                                row.price_tier_id
-                                  ? String(row.price_tier_id)
-                                  : "default"
+                                r.price_tier_id ? String(r.price_tier_id) : "0"
                               }
                               onValueChange={(v) =>
-                                updateCustomRow(row.id, {
+                                updateCustomRow(r.id, {
                                   price_tier_id:
-                                    v === "default" ? null : Number(v),
+                                    v === "0" ? null : Number(v),
                                 })
                               }
-                              disabled={!tiersForHall.length}
                             >
-                              <SelectTrigger className="h-8">
+                              <SelectTrigger className="h-8 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="default">Default</SelectItem>
+                                <SelectItem value="0">Default</SelectItem>
                                 {tiersForHall.map((t) => (
                                   <SelectItem key={t.id} value={String(t.id)}>
                                     {t.name}
@@ -911,28 +865,26 @@ export default function SeatBuilderPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
+                          <TableCell className="py-2">
+                            <div className="flex items-center gap-1">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
-                                title="Duplicate row"
-                                onClick={() => duplicateCustomRow(row.id)}
+                                className="h-7 w-7 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                                onClick={() => duplicateCustomRow(r.id)}
                               >
-                                <Copy className="h-4 w-4" />
+                                <Copy className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 dark:text-red-400"
-                                title="Remove row"
+                                className="h-7 w-7 text-zinc-400 hover:text-red-600"
                                 disabled={customRows.length <= 1}
-                                onClick={() => removeCustomRow(row.id)}
+                                onClick={() => removeCustomRow(r.id)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </TableCell>
@@ -940,26 +892,6 @@ export default function SeatBuilderPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
-                {customRows.length === 0 ? (
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    No rows yet — switch to Uniform and back to Custom, or click{" "}
-                    <strong>Add row</strong>.
-                  </p>
-                ) : null}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="n0c">First seat number (global counter)</Label>
-                    <Input
-                      id="n0c"
-                      type="number"
-                      min={0}
-                      value={seatNumberStart}
-                      onChange={(e) =>
-                        setSeatNumberStart(Number(e.target.value) || 0)
-                      }
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -977,74 +909,19 @@ export default function SeatBuilderPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Shapes className="h-4 w-4 text-zinc-500" />
-                    {builderMode === "uniform"
-                      ? "Geometry & appearance"
-                      : "Shared seat size & appearance"}
+                    Seat geometry
                   </CardTitle>
                   <CardDescription>
-                    {builderMode === "uniform"
-                      ? "Start position, spacing, and shape for the whole block."
-                      : "Width, height, shape, and rotation apply to every generated seat; row positions are in the table above."}
+                    Physical dimensions, shape, and rotation for all generated
+                    seats.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent
-              className={cn(
-                "grid gap-4",
-                builderMode === "uniform"
-                  ? "sm:grid-cols-2 lg:grid-cols-4"
-                  : "sm:grid-cols-2 lg:grid-cols-4",
-              )}
-            >
-              {builderMode === "uniform" ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="px">Start pos X</Label>
-                    <Input
-                      id="px"
-                      type="number"
-                      step="0.5"
-                      value={startPosX}
-                      onChange={(e) => setStartPosX(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="py">Start pos Y</Label>
-                    <Input
-                      id="py"
-                      type="number"
-                      step="0.5"
-                      value={startPosY}
-                      onChange={(e) => setStartPosY(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sx">Step X</Label>
-                    <Input
-                      id="sx"
-                      type="number"
-                      step="0.5"
-                      value={stepX}
-                      onChange={(e) => setStepX(Number(e.target.value))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sy">Step Y</Label>
-                    <Input
-                      id="sy"
-                      type="number"
-                      step="0.5"
-                      value={stepY}
-                      onChange={(e) => setStepY(Number(e.target.value))}
-                    />
-                  </div>
-                </>
-              ) : null}
+            <CardContent className="grid gap-4 sm:grid-cols-4">
               <div className="space-y-2">
-                <Label htmlFor="w">Width</Label>
+                <Label>Width</Label>
                 <Input
-                  id="w"
                   type="number"
                   min={1}
                   value={width}
@@ -1052,9 +929,8 @@ export default function SeatBuilderPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="h">Height</Label>
+                <Label>Height</Label>
                 <Input
-                  id="h"
                   type="number"
                   min={1}
                   value={height}
@@ -1062,139 +938,112 @@ export default function SeatBuilderPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shape">Shape</Label>
-                <Input
-                  id="shape"
-                  list="seat-shapes"
-                  value={shape}
-                  onChange={(e) => setShape(e.target.value || "rect")}
-                  placeholder="rect, circle, …"
-                />
-                <datalist id="seat-shapes">
-                  <option value="rect" />
-                  <option value="circle" />
-                  <option value="rounded_rect" />
-                </datalist>
+                <Label>Shape</Label>
+                <Select value={shape} onValueChange={setShape}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rect">Rectangle</SelectItem>
+                    <SelectItem value="circle">Circle</SelectItem>
+                    <SelectItem value="sofa">Sofa</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rot">Rotation (°)</Label>
+                <Label>Rotation (°)</Label>
                 <Input
-                  id="rot"
                   type="number"
-                  step={15}
+                  step={45}
                   value={rotation}
                   onChange={(e) => setRotation(Number(e.target.value))}
                 />
               </div>
-              <div className="flex items-center gap-2 sm:col-span-2">
-                <input
-                  id="active"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-zinc-300"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                />
-                <Label htmlFor="active" className="font-normal">
-                  is_active
-                </Label>
-              </div>
             </CardContent>
           </Card>
+        </div>
 
+        <aside className="space-y-6">
           <Card className="border-zinc-200/80 shadow-sm dark:border-zinc-800">
             <CardHeader className="pb-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-start gap-3">
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    aria-hidden
-                  >
-                    4
-                  </span>
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Sparkles className="h-4 w-4 text-zinc-500" />
-                      Preview &amp; API payload
-                    </CardTitle>
-                    <CardDescription>
-                      Sample JSON for{" "}
-                      <code className="rounded bg-zinc-100 px-1 text-xs dark:bg-zinc-800">
-                        POST /seats/bulk
-                      </code>
-                      .
-                    </CardDescription>
-                  </div>
-                </div>
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/seats/layout">
-                    Open hall layout (empty)
-                  </Link>
-                </Button>
-              </div>
+              <CardTitle className="text-base">Live Preview</CardTitle>
+              <CardDescription>
+                {previewSeats.length} seats generated. colors based on tier.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
-                <p className="mb-2 text-xs font-medium text-zinc-500">
-                  First 3 objects
-                </p>
-                <pre className="max-h-48 overflow-auto text-xs leading-relaxed">
-                  {JSON.stringify(previewSeats.slice(0, 3), null, 2)}
-                </pre>
+            <CardContent>
+              <div className="aspect-square w-full rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
+                <SeatBuilderPreview
+                  seats={previewSeats}
+                  tierColors={tierColorMap}
+                />
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-col gap-2">
                 <Button
                   type="button"
-                  size="lg"
-                  className="gap-2"
+                  className="w-full gap-2"
                   disabled={!canSubmit || submitting}
                   onClick={() => void handleSubmit()}
                 >
                   <Send className="h-4 w-4" />
                   {submitting
                     ? "Submitting…"
-                    : `Bulk insert ${previewSeats.length} seats`}
+                    : `Insert ${previewSeats.length} seats`}
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
                   variant="outline"
-                  className="gap-2"
+                  className="w-full gap-2"
                   disabled={previewSeats.length === 0}
                   onClick={openLayoutEditor}
                 >
                   <MousePointer2 className="h-4 w-4" />
-                  Continue in hall layout
+                  Hall layout
                 </Button>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="lg:sticky lg:top-4 lg:self-start">
-          <SeatBuilderPreview seats={previewSeats} tierColors={tierColorMap} />
-        </div>
+          <Card className="border-zinc-200/80 shadow-sm dark:border-zinc-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">JSON Payload</CardTitle>
+              <CardDescription>First 3 items only.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <pre className="max-h-48 overflow-auto rounded-md bg-zinc-50 p-2 text-[10px] dark:bg-zinc-900/50">
+                {JSON.stringify(previewSeats.slice(0, 3), null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/95 lg:hidden">
-        <div className="mx-auto flex max-w-6xl gap-2 px-2">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80 lg:hidden">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs font-medium text-zinc-500 uppercase">Seats</p>
+            <p className="text-lg font-bold tabular-nums">
+              {previewSeats.length}
+            </p>
+          </div>
           <Button
             type="button"
-            className="min-h-11 flex-1 gap-2"
+            className="flex-1 gap-2"
             disabled={!canSubmit || submitting}
             onClick={() => void handleSubmit()}
           >
-            <Send className="h-4 w-4 shrink-0" />
-            {submitting ? "…" : `Insert (${previewSeats.length})`}
+            <Send className="h-4 w-4" />
+            Submit
           </Button>
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 flex-1 gap-2"
+            className="flex-1 gap-2"
             disabled={previewSeats.length === 0}
             onClick={openLayoutEditor}
           >
-            <MousePointer2 className="h-4 w-4 shrink-0" />
-            Layout
+            <MousePointer2 className="h-4 w-4" />
+            Refine
           </Button>
         </div>
       </div>

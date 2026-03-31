@@ -9,7 +9,6 @@ const links = [
   { href: "/dashboard/branches", label: "Branches" },
   { href: "/dashboard/halls", label: "Halls" },
   { href: "/dashboard/price-tiers", label: "Price tiers" },
-  { href: "/dashboard/hall-sections", label: "Hall sections" },
   { href: "/dashboard/seats", label: "Seats" },
   { href: "/dashboard/movies", label: "Movies" },
   { href: "/dashboard/showtimes", label: "Showtimes" },

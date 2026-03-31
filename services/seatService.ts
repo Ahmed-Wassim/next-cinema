@@ -5,7 +5,7 @@ import type { Seat } from "@/types/seat";
 export interface SeatListParams {
   page?: number;
   per_page?: number;
-  hall_section_id?: number;
+  hall_id?: number;
 }
 
 export const getSeats = (params?: SeatListParams) =>
@@ -21,5 +21,7 @@ export const updateSeat = (id: number, data: Partial<Omit<Seat, "id">>) =>
 
 export const deleteSeat = (id: number) => api.delete(`/seats/${id}`);
 
-export const bulkInsertSeats = (seats: BulkSeatItem[]) =>
-  api.post("/seats/bulk", { seats });
+export const bulkInsertSeats = (
+  hallId: number,
+  seats: Omit<BulkSeatItem, "hall_id">[],
+) => api.post(`/halls/${hallId}/seats/bulk`, { seats });

@@ -13,6 +13,7 @@ import {
   Link2Off,
   AlignHorizontalSpaceAround,
   AlignVerticalSpaceAround,
+  Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,6 @@ import {
 import { cn } from "@/lib/utils";
 import { curveSelectedSeatsAlongRow } from "@/lib/curve-seat-row";
 import type { Hall } from "@/types/hall";
-import type { HallSection } from "@/types/hall-section";
 import type { PriceTier } from "@/types/price-tier";
 import type { LayoutSeat } from "@/types/seat-layout";
 import type { DesignerTool, SeatDefaults } from "@/types/designer-types";
@@ -84,15 +84,11 @@ function Section({
 interface SeatDesignerSidebarProps {
   /* Venue target */
   halls: Hall[];
-  sections: HallSection[];
   tiers: PriceTier[];
   hallId: number;
-  sectionId: number;
   tierId: number;
   onHallChange: (v: number) => void;
-  onSectionChange: (v: number) => void;
   onTierChange: (v: number) => void;
-  sectionsForHall: HallSection[];
   tiersForHall: PriceTier[];
 
   /* Seats */
@@ -122,15 +118,11 @@ interface SeatDesignerSidebarProps {
 
 export function SeatDesignerSidebar({
   halls,
-  sections,
   tiers,
   hallId,
-  sectionId,
   tierId,
   onHallChange,
-  onSectionChange,
   onTierChange,
-  sectionsForHall,
   tiersForHall,
   seats,
   onSeatsChange,
@@ -268,7 +260,6 @@ export function SeatDesignerSidebar({
       newSeats.push({
         layoutKey: crypto.randomUUID(),
         hall_id: hallId,
-        section_id: sectionId,
         price_tier_id: tier,
         row: rowGen.rowLabel.trim() || "?",
         number: String(i + 1),
@@ -336,25 +327,6 @@ export function SeatDesignerSidebar({
                 {halls.map((h) => (
                   <SelectItem key={h.id} value={String(h.id)}>
                     {h.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Section</Label>
-            <Select
-              value={sectionId ? String(sectionId) : ""}
-              onValueChange={(v) => onSectionChange(Number(v))}
-              disabled={!hallId || !sectionsForHall.length}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Section" />
-              </SelectTrigger>
-              <SelectContent>
-                {sectionsForHall.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -646,7 +618,7 @@ export function SeatDesignerSidebar({
             type="button"
             size="sm"
             className="w-full gap-1.5"
-            disabled={rowGen.seatCount < 1 || !hallId || !sectionId}
+            disabled={rowGen.seatCount < 1 || !hallId}
             onClick={generateRow}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -798,39 +770,156 @@ export function SeatDesignerSidebar({
                 />
               </div>
               <div className="col-span-2 flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="seat-active-toggle"
-                  className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                  checked={selectedSeats[0].is_active}
-                  onChange={(e) => {
-                    const is_active = e.target.checked;
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() =>
                     onSeatsChange(
                       seats.map((s) =>
                         s.layoutKey === selectedSeats[0]!.layoutKey
-                          ? { ...s, is_active }
+                          ? { ...s, rotation: s.rotation - 15 }
                           : s,
                       ),
-                    );
-                  }}
-                />
-                <Label
-                  htmlFor="seat-active-toggle"
-                  className="text-xs font-medium cursor-pointer"
+                    )
+                  }
                 >
-                  Available for booking
-                </Label>
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() =>
+                    onSeatsChange(
+                      seats.map((s) =>
+                        s.layoutKey === selectedSeats[0]!.layoutKey
+                          ? { ...s, rotation: s.rotation + 15 }
+                          : s,
+                      ),
+                    )
+                  }
+                >
+                  <RotateCw className="h-3 w-3" />
+                </Button>
+                <span className="text-[10px] text-zinc-500">
+                  {Math.round(selectedSeats[0].rotation)}°
+                </span>
               </div>
             </div>
           </div>
         )}
 
+        {/* Multi Selection Tools */}
+        {selectedCount > 1 && (
+          <div className="space-y-3 rounded-md border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900/50 mt-3">
+            <h4 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Bulk Edits ({selectedCount})
+            </h4>
+
+            {/* Align / Distribute */}
+            <div className="space-y-2">
+              <Label className="text-[10px]">Distribute Spacing</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={distGapX}
+                    onChange={(e) => setDistGapX(Number(e.target.value) || 0)}
+                    className="h-7 px-1 text-xs"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => distributeSelected("x")}
+                    title="Distribute horizontally"
+                  >
+                    <AlignHorizontalSpaceAround className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={distGapY}
+                    onChange={(e) => setDistGapY(Number(e.target.value) || 0)}
+                    className="h-7 px-1 text-xs"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => distributeSelected("y")}
+                    title="Distribute vertically"
+                  >
+                    <AlignVerticalSpaceAround className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tier Assignment */}
+            <div className="space-y-1.5">
+              <Label className="text-[10px]">Apply Tier</Label>
+              <div className="flex gap-1.5">
+                <Select
+                  value={assignTierId ? String(assignTierId) : ""}
+                  onValueChange={(v) => setAssignTierId(Number(v))}
+                >
+                  <SelectTrigger className="h-7 flex-1 text-[10px]">
+                    <SelectValue placeholder="Select tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiersForHall.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 px-2 text-[10px]"
+                  onClick={applyTierToSelection}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+
+            {/* Rotation */}
+            <div className="space-y-1.5">
+              <Label className="text-[10px]">Apply Rotation</Label>
+              <div className="flex gap-1.5">
+                <Input
+                  type="number"
+                  value={rotationEdit}
+                  onChange={(e) => setRotationEdit(Number(e.target.value))}
+                  className="h-7 flex-1 text-xs"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 px-2 text-[10px]"
+                  onClick={() => applyRotation()}
+                >
+                  Set
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Selection by Row */}
         {rowLetters.length > 0 && (
-          <div className="space-y-1">
-            <Label className="text-xs">Select row</Label>
-            <Select onValueChange={selectRow}>
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Pick row" />
+          <div className="space-y-1 mt-3">
+            <Label className="text-xs">Pick row</Label>
+            <Select onValueChange={(v) => selectRow(v)}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select Row" />
               </SelectTrigger>
               <SelectContent>
                 {rowLetters.map((r) => (
@@ -842,254 +931,27 @@ export function SeatDesignerSidebar({
             </Select>
           </div>
         )}
-
-        {/* Tier assignment */}
-        {selectedCount > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-xs">Assign tier</Label>
-            <div className="flex gap-1.5">
-              <Select
-                value={assignTierId ? String(assignTierId) : ""}
-                onValueChange={(v) => setAssignTierId(Number(v))}
-                disabled={!tiersForHall.length}
-              >
-                <SelectTrigger className="h-7 flex-1 text-xs">
-                  <SelectValue placeholder="Tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tiersForHall.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      <span className="flex items-center gap-1.5">
-                        {t.color && (
-                          <span
-                            className="inline-block h-2 w-2 rounded-full"
-                            style={{ backgroundColor: t.color }}
-                          />
-                        )}
-                        {t.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 text-xs"
-                disabled={!assignTierId}
-                onClick={applyTierToSelection}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Rotation */}
-        {selectedCount > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-xs">Rotation</Label>
-            <div className="flex gap-1">
-              <Input
-                type="number"
-                step={15}
-                className="h-7 w-16 text-xs"
-                value={rotationEdit}
-                onChange={(e) => setRotationEdit(Number(e.target.value))}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => applyRotation()}
-                title="Set angle"
-              >
-                ✓
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => applyRotation(-15)}
-                title="Rotate −15°"
-              >
-                <RotateCcw className="h-3 w-3" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => applyRotation(15)}
-                title="Rotate +15°"
-              >
-                <RotateCw className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Resize selected seats */}
-        {selectedCount > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">
-              Resize selected ({selectedCount})
-            </Label>
-            <div className="grid grid-cols-3 gap-1.5">
-              <div className="space-y-0.5">
-                <Label className="text-[10px] text-zinc-400">Width</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  step={0.5}
-                  className="h-7 text-xs"
-                  value={selectedSeats[0]?.width ?? seatDefaults.width}
-                  onChange={(e) => {
-                    const w = Math.max(1, Number(e.target.value) || 1);
-                    onSeatsChange(
-                      seats.map((s) =>
-                        selectedKeys.has(s.layoutKey)
-                          ? {
-                              ...s,
-                              width: w,
-                              height: lockSquare ? w : s.height,
-                            }
-                          : s,
-                      ),
-                    );
-                  }}
-                />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] text-zinc-400">Height</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  step={0.5}
-                  className="h-7 text-xs"
-                  value={selectedSeats[0]?.height ?? seatDefaults.height}
-                  disabled={lockSquare}
-                  onChange={(e) => {
-                    const h = Math.max(1, Number(e.target.value) || 1);
-                    onSeatsChange(
-                      seats.map((s) =>
-                        selectedKeys.has(s.layoutKey)
-                          ? { ...s, height: h, width: lockSquare ? h : s.width }
-                          : s,
-                      ),
-                    );
-                  }}
-                />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] text-zinc-400">Shape</Label>
-                <Select
-                  value={selectedSeats[0]?.shape ?? seatDefaults.shape}
-                  onValueChange={(v) => {
-                    onSeatsChange(
-                      seats.map((s) =>
-                        selectedKeys.has(s.layoutKey) ? { ...s, shape: v } : s,
-                      ),
-                    );
-                  }}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rect">Rect</SelectItem>
-                    <SelectItem value="circle">Circle</SelectItem>
-                    <SelectItem value="rounded_rect">Rounded</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Distribute Space selected seats */}
-        {selectedCount > 1 && (
-          <div className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <Label className="text-xs font-medium">Distribute spacing</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
-                <span className="text-[10px] text-zinc-500 font-medium">
-                  X Gap
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  className="w-full bg-transparent text-xs outline-none"
-                  value={distGapX}
-                  onChange={(e) =>
-                    setDistGapX(Math.max(0, Number(e.target.value) || 0))
-                  }
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => distributeSelected("x")}
-              >
-                <AlignHorizontalSpaceAround className="h-3 w-3" /> Set X
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex flex-1 items-center gap-1.5 focus-within:ring-1 focus-within:ring-zinc-300 rounded-md border border-input px-2 h-7">
-                <span className="text-[10px] text-zinc-500 font-medium">
-                  Y Gap
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  className="w-full bg-transparent text-xs outline-none"
-                  value={distGapY}
-                  onChange={(e) =>
-                    setDistGapY(Math.max(0, Number(e.target.value) || 0))
-                  }
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => distributeSelected("y")}
-              >
-                <AlignVerticalSpaceAround className="h-3 w-3" /> Set Y
-              </Button>
-            </div>
-          </div>
-        )}
       </Section>
 
-      {/* ---- Curve ---- */}
-      <Section title="Curve row" defaultOpen={false}>
+      {/* ---- Curve Selection ---- */}
+      <Section title="Curve selection" icon={Sparkles} defaultOpen={false}>
         <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-          Select ≥2 seats in a row → curve them along a Bézier arc.
+          Curve the selected seats into an arc. Sorting is done automatically by
+          row/number.
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
           <div className="space-y-1">
-            <Label className="text-xs">Bulge</Label>
+            <Label className="text-xs">Bulge (units)</Label>
             <Input
               type="number"
               step={1}
-              min={0}
               className="h-7 text-xs"
               value={rowBulge}
-              onChange={(e) =>
-                setRowBulge(Math.max(0, Number(e.target.value) || 0))
-              }
+              onChange={(e) => setRowBulge(Number(e.target.value) || 0)}
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Direction</Label>
+            <Label className="text-xs">Bow direction</Label>
             <Select
               value={bowToward}
               onValueChange={(v) => setBowToward(v as "screen" | "audience")}
@@ -1098,33 +960,34 @@ export function SeatDesignerSidebar({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="screen">Toward screen</SelectItem>
-                <SelectItem value="audience">Toward audience</SelectItem>
+                <SelectItem value="screen">Toward screen (+Y)</SelectItem>
+                <SelectItem value="audience">Toward audience (−Y)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-2 py-1">
+            <input
+              id="rotcurve-side"
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-zinc-300"
+              checked={rotateWithCurve}
+              onChange={(e) => setRotateWithCurve(e.target.checked)}
+            />
+            <Label htmlFor="rotcurve-side" className="text-xs font-normal">
+              Rotate seats with arc
+            </Label>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full gap-1.5"
+            disabled={selectedKeys.size < 2}
+            onClick={applyCurve}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Apply curve
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            id="rotcurve2"
-            type="checkbox"
-            className="h-3.5 w-3.5 rounded border-zinc-300"
-            checked={rotateWithCurve}
-            onChange={(e) => setRotateWithCurve(e.target.checked)}
-          />
-          <Label htmlFor="rotcurve2" className="text-xs font-normal">
-            Rotate seats along arc
-          </Label>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="w-full"
-          disabled={selectedKeys.size < 2}
-          onClick={applyCurve}
-        >
-          Curve selected ({selectedKeys.size})
-        </Button>
       </Section>
     </aside>
   );

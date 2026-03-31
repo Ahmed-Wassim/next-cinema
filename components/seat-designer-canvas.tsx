@@ -102,7 +102,6 @@ interface SeatDesignerCanvasProps {
   snapEnabled: boolean;
   snapStep: number;
   hallId: number;
-  sectionId: number;
   defaultTierId: number;
   paintTierId: number;
   nextRowLabel: string;
@@ -132,7 +131,6 @@ export function SeatDesignerCanvas({
   snapEnabled,
   snapStep,
   hallId,
-  sectionId,
   defaultTierId,
   paintTierId,
   nextRowLabel,
@@ -407,7 +405,13 @@ export function SeatDesignerCanvas({
         setHoveredKey(found);
       }
     },
-    [onSeatsChange, onSelectionChange, onViewportChange, startPanning, clampSeatToBounds],
+    [
+      onSeatsChange,
+      onSelectionChange,
+      onViewportChange,
+      startPanning,
+      clampSeatToBounds,
+    ],
   );
 
   const handlePointerUp = useCallback(
@@ -486,7 +490,6 @@ export function SeatDesignerCanvas({
           const newSeat: LayoutSeat = {
             layoutKey: crypto.randomUUID(),
             hall_id: hallId,
-            section_id: sectionId,
             price_tier_id: defaultTierId,
             row: nextRowLabel,
             number: String(nextSeatNumber),
@@ -534,7 +537,6 @@ export function SeatDesignerCanvas({
       snap,
       paintTierId,
       hallId,
-      sectionId,
       defaultTierId,
       nextRowLabel,
       nextSeatNumber,
@@ -799,121 +801,108 @@ export function SeatDesignerCanvas({
                   rx={rx}
                   ry={ry}
                   fill={fill}
-                  fillOpacity={selected ? 0.95 : tint ? 0.35 : 0.9}
                   stroke={stroke}
                   strokeWidth={strokeW}
                   transform={rot}
                   filter={filter}
-                  style={{ pointerEvents: "all" }}
+                  className="transition-all duration-150"
+                  style={{ cursor: "pointer", pointerEvents: "all" }}
                 />
-                {/* Label (only if zoomed enough) */}
-                {viewport.zoom > 0.5 && (
+
+                {/* Label (Row + Number) */}
+                {(viewport.zoom > 0.4 || selected || hovered) && (
                   <text
                     x={cx}
                     y={cy}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={clamp(Math.min(s.width, s.height) * 0.45, 1, 3)}
-                    fontWeight={selected ? 700 : 600}
-                    fill={
-                      selected ? "#1d4ed8" : hovered ? "#1e3a5f" : "#27272a"
-                    }
-                    opacity={viewport.zoom > 0.8 ? 1 : 0.7}
+                    fontSize={2.8}
+                    fontWeight={selected ? 700 : 500}
+                    fill={selected ? "#1e40af" : "rgba(0,0,0,0.7)"}
+                    pointerEvents="none"
                     transform={rot}
                     style={{
-                      pointerEvents: "none",
-                      userSelect: "none",
                       fontFamily: "system-ui, sans-serif",
+                      userSelect: "none",
                     }}
                   >
                     {s.row}
                     {s.number}
                   </text>
                 )}
-                {/* Selection ring */}
-                {selected && (
-                  <rect
-                    x={s.pos_x - 0.5}
-                    y={s.pos_y - 0.5}
-                    width={s.width + 1}
-                    height={s.height + 1}
-                    rx={rx + 0.3}
-                    ry={ry + 0.3}
-                    fill="none"
-                    stroke="#60a5fa"
-                    strokeWidth={0.2}
-                    strokeDasharray="1.2 0.6"
+
+                {/* Custom Label (Smaller, below) */}
+                {(viewport.zoom > 0.8 || selected) && s.label && (
+                  <text
+                    x={cx}
+                    y={s.pos_y + s.height - 1.5}
+                    textAnchor="middle"
+                    fontSize={1.2}
+                    fontWeight={600}
+                    fill={selected ? "#1e40af" : "rgba(0,0,0,0.5)"}
+                    pointerEvents="none"
                     transform={rot}
-                    style={{ pointerEvents: "none" }}
-                  />
+                    style={{ textTransform: "uppercase", userSelect: "none" }}
+                  >
+                    {s.label}
+                  </text>
                 )}
               </g>
             );
           })}
 
-          {/* Rubber-band marquee */}
+          {/* Marquee */}
           {marquee && (
             <rect
               x={Math.min(marquee.x1, marquee.x2)}
               y={Math.min(marquee.y1, marquee.y2)}
               width={Math.abs(marquee.x2 - marquee.x1)}
               height={Math.abs(marquee.y2 - marquee.y1)}
-              fill="rgba(59,130,246,0.06)"
-              stroke="rgba(59,130,246,0.45)"
-              strokeWidth={0.3}
-              strokeDasharray="2 1"
-              style={{ pointerEvents: "none" }}
+              fill="rgba(59,130,246,0.12)"
+              stroke="#3b82f6"
+              strokeWidth={0.5}
+              strokeDasharray="2 1.5"
             />
           )}
 
-          {/* Place-tool ghost preview (centered on hover position) */}
-          {activeTool === "place" && hoveredKey === null && (
-            <rect
-              x={0}
-              y={0}
-              width={seatDefaults.width}
-              height={seatDefaults.height}
-              rx={0.4}
-              ry={0.4}
-              fill="rgba(59,130,246,0.08)"
-              stroke="rgba(59,130,246,0.3)"
-              strokeWidth={0.25}
-              strokeDasharray="1 0.5"
-              style={{ pointerEvents: "none", opacity: 0 }}
-            />
+          {/* Selection context visuals (size in units) */}
+          {selectedKeys.size === 1 && seatsRef.current.find((x) => x.layoutKey === [...selectedKeys][0]) && (
+            <g pointerEvents="none">
+              {(() => {
+                const s = seatsRef.current.find((x) => x.layoutKey === [...selectedKeys][0])!;
+                return (
+                  <>
+                    {/* Dimension lines */}
+                    <path
+                      d={`M ${s.pos_x} ${s.pos_y - 2.5} L ${s.pos_x + s.width} ${s.pos_y - 2.5}`}
+                      stroke="#3b82f6"
+                      strokeWidth={0.2}
+                    />
+                    <text
+                      x={s.pos_x + s.width / 2}
+                      y={s.pos_y - 3.8}
+                      textAnchor="middle"
+                      fontSize={1.6}
+                      fill="#3b82f6"
+                      fontWeight={600}
+                    >
+                      {s.width}
+                    </text>
+                  </>
+                );
+              })()}
+            </g>
           )}
         </g>
       </svg>
 
-      {/* HUD overlays */}
-      <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2">
-        <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white/90 backdrop-blur-md">
-          {Math.round(viewport.zoom * 100)}%
+      {/* Map coordinates / zoom overlay */}
+      <div className="absolute right-3 bottom-3 pointer-events-none flex flex-col items-end gap-1 px-2 py-1.5 rounded-lg bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/50 dark:border-zinc-800/50 backdrop-blur-sm shadow-sm group">
+        <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
+           <span>{Math.round(viewport.panX)},{Math.round(viewport.panY)}</span>
+           <span className="w-px h-2 bg-zinc-300 dark:bg-zinc-700" />
+           <span className="font-bold text-zinc-900 dark:text-zinc-100">{Math.round(viewport.zoom * 100)}%</span>
         </div>
-        <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-medium text-white/80 backdrop-blur-md">
-          {seats.length} seats
-        </div>
-      </div>
-
-      <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2">
-        <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-medium capitalize text-white/80 backdrop-blur-md">
-          {activeTool === "tier-paint"
-            ? "🎨 Tier Paint"
-            : activeTool === "place"
-              ? "➕ Place"
-              : activeTool === "row"
-                ? "📐 Add Row"
-                : activeTool === "pan"
-                  ? "🖐️ Pan"
-                  : "🔍 Select"}
-        </div>
-      </div>
-
-      {/* Keyboard hints */}
-      <div className="pointer-events-none absolute left-3 top-3 space-y-1 text-[10px] leading-tight text-zinc-400/70 dark:text-zinc-500/70">
-        <div>Hold click to pan · Scroll to zoom</div>
-        <div>Ctrl+click toggle · Shift+click add</div>
-        <div>Del to remove · Ctrl+A select all</div>
       </div>
     </div>
   );
