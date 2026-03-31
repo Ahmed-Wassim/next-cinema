@@ -273,7 +273,11 @@ export default function HallLayoutEditorPage() {
       setError("No seats in the layout. Replace layout from grid first.");
       return;
     }
-    const payload = layoutSeats.map(stripLayoutKey);
+    const payload = layoutSeats.map((s) => {
+      const item = stripLayoutKey(s);
+      if (!item.price_tier_id) item.price_tier_id = tierId;
+      return item;
+    });
     setSubmitting(true);
     try {
       await bulkInsertSeats(hallId, payload);

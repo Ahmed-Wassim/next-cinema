@@ -368,7 +368,10 @@ export default function SeatBuilderPage() {
       setError("No seats to create. Check grid settings.");
       return;
     }
-    const payload = previewSeats.map(({ hall_id, ...rest }) => rest);
+    const payload = previewSeats.map(({ hall_id, ...rest }) => {
+      if (!rest.price_tier_id) rest.price_tier_id = tierId;
+      return rest;
+    });
     setSubmitting(true);
     try {
       await bulkInsertSeats(hallId, payload);

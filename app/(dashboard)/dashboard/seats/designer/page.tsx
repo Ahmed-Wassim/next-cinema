@@ -431,7 +431,11 @@ export default function SeatDesignerPage() {
     }
     setSubmitting(true);
     try {
-      const payload = seats.map(stripLayoutKey);
+      const payload = seats.map((s) => {
+        const item = stripLayoutKey(s);
+        if (!item.price_tier_id) item.price_tier_id = tierId;
+        return item;
+      });
       await bulkInsertSeats(hallId, payload);
       setMessage(`Created ${payload.length} seats via bulk API.`);
       setHasSubmitted(true);

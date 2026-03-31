@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronUp, MonitorPlay, Palette } from "lucide-react";
+import { Palette, X } from "lucide-react";
 
 type ThemeKey = "cinematic" | "luxury" | "neon";
 
@@ -15,7 +15,7 @@ type Theme = {
 
 const themes: Theme[] = [
   {
-    name: "Classic Cinematic",
+    name: "Classic",
     key: "cinematic",
     vars: {
       "--bg-primary": "#0B0B0F",
@@ -28,7 +28,7 @@ const themes: Theme[] = [
     glow: "rgba(229, 9, 20, 0.35)",
   },
   {
-    name: "Luxury Gold",
+    name: "Luxury",
     key: "luxury",
     vars: {
       "--bg-primary": "#0A0A0A",
@@ -57,38 +57,24 @@ const themes: Theme[] = [
 
 const STORAGE_KEY = "cinemaTheme";
 const THEME_CHANGE_EVENT = "cinema-theme-change";
+
 const panelTransition = {
   type: "spring",
-  stiffness: 260,
-  damping: 24,
-  mass: 0.9,
+  stiffness: 300,
+  damping: 25,
 } as const;
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-
   Object.entries(theme.vars).forEach(([key, value]) => {
     root.style.setProperty(key, value);
   });
 
   root.style.setProperty("--border", theme.vars["--accent"] ?? "#333");
-  root.style.setProperty(
-    "--background",
-    theme.vars["--bg-primary"] ?? "#07070A",
-  );
-  root.style.setProperty(
-    "--foreground",
-    theme.vars["--text-primary"] ?? "#f8fafc",
-  );
-  root.style.setProperty(
-    "--color-background",
-    theme.vars["--bg-primary"] ?? "#07070A",
-  );
-  root.style.setProperty(
-    "--color-foreground",
-    theme.vars["--text-primary"] ?? "#f8fafc",
-  );
-
+  root.style.setProperty("--background", theme.vars["--bg-primary"] ?? "#07070A");
+  root.style.setProperty("--foreground", theme.vars["--text-primary"] ?? "#f8fafc");
+  root.style.setProperty("--color-background", theme.vars["--bg-primary"] ?? "#07070A");
+  root.style.setProperty("--color-foreground", theme.vars["--text-primary"] ?? "#f8fafc");
   root.style.setProperty("--theme-glow", theme.glow);
   root.dataset.theme = theme.key;
 }
@@ -100,7 +86,6 @@ function getThemeByKey(key?: ThemeKey | string | null): Theme | undefined {
 function subscribe(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
   window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
-
   return () => {
     window.removeEventListener("storage", onStoreChange);
     window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
@@ -109,8 +94,7 @@ function subscribe(onStoreChange: () => void) {
 
 function getThemeKeySnapshot() {
   return (
-    getThemeByKey(window.localStorage.getItem(STORAGE_KEY))?.key ??
-    themes[0].key
+    getThemeByKey(window.localStorage.getItem(STORAGE_KEY))?.key ?? themes[0].key
   );
 }
 
@@ -138,111 +122,63 @@ export default function ThemeSwitcher() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 px-3 sm:bottom-6 sm:px-6">
-      <motion.div
-        className="pointer-events-auto mx-auto max-w-5xl rounded-[28px] border border-[var(--panel-border)] bg-[var(--panel-bg)] px-4 py-4 shadow-[0_22px_60px_rgba(2,6,23,0.45)] backdrop-blur-xl sm:px-5"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/6">
-              <span className="absolute inset-1 rounded-xl bg-[var(--accent)]/18 blur-md" />
-              {isExpanded ? (
-                <MonitorPlay className="relative h-5 w-5 text-[var(--accent)]" />
-              ) : (
-                <Palette className="relative h-5 w-5 text-[var(--accent)]" />
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[var(--text-primary)]">
-                Mood Switcher
-              </p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Active theme:{" "}
-                <span className="text-[var(--accent)]">{activeTheme.name}</span>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsExpanded((value) => !value)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] transition-all duration-300 hover:border-[var(--accent)]/30 hover:bg-white/10"
-            aria-expanded={isExpanded}
-            aria-label={
-              isExpanded ? "Collapse theme switcher" : "Expand theme switcher"
-            }
+    <div className="fixed bottom-5 right-5 z-[100] flex flex-col items-end gap-3 pointer-events-none">
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10, x: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10, x: 10 }}
+            transition={panelTransition}
+            className="pointer-events-auto flex flex-col gap-2 rounded-2xl border border-white/10 bg-black/80 p-2 backdrop-blur-xl shadow-2xl min-w-[160px]"
           >
-            {isExpanded ? "Hide themes" : "Show themes"}
-            <ChevronUp
-              className={`h-4 w-4 transition-transform duration-300 ${isExpanded ? "rotate-0" : "rotate-180"}`}
-            />
-          </button>
-        </div>
+            <div className="px-2 py-1 mb-1 border-b border-white/5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Pick Style</p>
+            </div>
+            {themes.map((theme) => {
+              const isActive = theme.key === activeTheme.key;
+              return (
+                <button
+                  key={theme.key}
+                  onClick={() => handleSelect(theme)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-all hover:bg-white/5 ${
+                    isActive ? "bg-white/10" : ""
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: theme.vars["--accent"] }}
+                  />
+                  <span className={`text-xs font-medium ${isActive ? "text-white" : "text-zinc-400"}`}>
+                    {theme.name}
+                  </span>
+                  {isActive && (
+                      <motion.span 
+                        layoutId="active-dot"
+                        className="ml-auto flex h-1 w-1 rounded-full bg-[var(--accent)]" 
+                      />
+                  )}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <AnimatePresence initial={false}>
-          {isExpanded && (
-            <motion.div
-              className="mt-3 grid grid-cols-1 gap-2 border-t border-white/8 pt-3 sm:grid-cols-3"
-              initial={{ opacity: 0, height: 0, y: 8 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: 6 }}
-              transition={panelTransition}
-            >
-              {themes.map((theme, index) => {
-                const isActive = theme.key === activeTheme.key;
-
-                return (
-                  <motion.button
-                    key={theme.key}
-                    onClick={() => handleSelect(theme)}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...panelTransition, delay: index * 0.03 }}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.985 }}
-                    className={`group relative overflow-hidden rounded-2xl border px-4 py-3 text-left transition-all duration-300 ${
-                      isActive
-                        ? "cinema-ring border-[var(--accent)]/50 bg-[var(--accent)]/12"
-                        : "border-white/8 bg-black/10 hover:border-[var(--accent)]/30 hover:bg-white/6"
-                    }`}
-                  >
-                    <span className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <span className="animate-shimmer-slide absolute inset-y-0 left-0 w-24 -skew-x-12 bg-white/10" />
-                    </span>
-                    <span className="mb-3 flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: theme.vars["--accent"] }}
-                      />
-                      <span className="text-sm font-semibold text-[var(--text-primary)]">
-                        {theme.name}
-                      </span>
-                    </span>
-                    <span className="flex gap-2">
-                      <span
-                        className="h-7 flex-1 rounded-xl border border-white/10"
-                        style={{ backgroundColor: theme.vars["--bg-primary"] }}
-                      />
-                      <span
-                        className="h-7 flex-1 rounded-xl border border-white/10"
-                        style={{
-                          backgroundColor: theme.vars["--bg-secondary"],
-                        }}
-                      />
-                      <span
-                        className="h-7 w-10 rounded-xl border border-white/10"
-                        style={{ backgroundColor: theme.vars["--accent"] }}
-                      />
-                    </span>
-                  </motion.button>
-                );
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      <motion.button
+        type="button"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="pointer-events-auto relative flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md transition-colors hover:border-[var(--accent)]/50"
+      >
+        <span className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-10 animate-pulse" />
+        {isExpanded ? (
+          <X className="h-4 w-4 relative z-10" />
+        ) : (
+          <Palette className="h-4 w-4 relative z-10" />
+        )}
+      </motion.button>
     </div>
   );
 }
