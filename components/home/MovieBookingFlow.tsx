@@ -13,6 +13,7 @@ import { Stepper } from "@/components/ui/stepper";
 import { ToastContainer, ToastItem } from "@/components/ui/toast";
 
 interface MovieBookingFlowProps {
+  movieId?: number | string;
   showtimes: GroupedShowtimes;
 }
 
@@ -24,7 +25,10 @@ const sectionTransition = {
   mass: 0.9,
 } as const;
 
-export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
+export function MovieBookingFlow({
+  movieId,
+  showtimes,
+}: MovieBookingFlowProps) {
   const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [selectedShowtimeId, setSelectedShowtimeId] = useState<number | null>(
@@ -44,15 +48,36 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
   const getSeatCurrency = (seat?: ShowtimeSeat | null) =>
     seat?.currency ?? seat?.price_tier?.currency ?? "USD";
 
+  const availableShowtimeIds = useMemo(() => {
+    return new Set(
+      Object.values(showtimes).flatMap((dateMap) =>
+        Object.values(dateMap).flatMap((slots) => slots.map((slot) => slot.id)),
+      ),
+    );
+  }, [showtimes]);
+
   useEffect(() => {
     const lastId = Number(
       window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0",
     );
-    if (lastId > 0) {
+    if (lastId > 0 && availableShowtimeIds.has(lastId)) {
       setSelectedShowtimeId(lastId);
       setActiveStep(1);
+    } else {
+      window.localStorage.removeItem("cinema.lastSelectedShowtime");
     }
-  }, []);
+  }, [availableShowtimeIds]);
+
+  useEffect(() => {
+    if (!selectedShowtimeId) return;
+    if (availableShowtimeIds.has(selectedShowtimeId)) return;
+
+    setSelectedShowtimeId(null);
+    setSelectedSeats([]);
+    setSeats([]);
+    setActiveStep(0);
+    window.localStorage.removeItem("cinema.lastSelectedShowtime");
+  }, [availableShowtimeIds, selectedShowtimeId]);
 
   useEffect(() => {
     if (!selectedShowtimeId) {
@@ -202,6 +227,12 @@ export function MovieBookingFlow({ showtimes }: MovieBookingFlowProps) {
                       "cinema.lastSelectedShowtime",
                       String(id),
                     );
+                    if (movieId !== undefined) {
+                      window.localStorage.setItem(
+                        "cinema.lastSelectedMovie",
+                        String(movieId),
+                      );
+                    }
                     setSelectedSeats([]);
                     setClearSelectionSignal((prev) => prev + 1);
                   }}

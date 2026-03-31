@@ -102,7 +102,7 @@ export default async function MovieDetailPage({ params }: Props) {
 
       <section className="grid gap-8 lg:grid-cols-[2fr_1fr]">
         <div className="space-y-5">
-          <MovieBookingFlow showtimes={showtimes ?? {}} />
+          <MovieBookingFlow movieId={movie.id} showtimes={showtimes ?? {}} />
         </div>
 
         <aside className="cinema-surface rounded-[30px] p-5">

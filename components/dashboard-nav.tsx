@@ -8,6 +8,7 @@ import {
   Building2,
   Clapperboard,
   MapPinned,
+  ReceiptText,
   Tags,
   Ticket,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const links = [
   { href: "/dashboard/seats", label: "Seats", icon: Armchair },
   { href: "/dashboard/movies", label: "Movies", icon: Clapperboard },
   { href: "/dashboard/showtimes", label: "Showtimes", icon: Ticket },
+  { href: "/dashboard/payments", label: "Payments", icon: ReceiptText },
 ];
 
 export function DashboardNav({
