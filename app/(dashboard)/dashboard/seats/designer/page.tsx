@@ -548,11 +548,11 @@ export default function SeatDesignerPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 overflow-hidden px-4 pb-4">
+    <div className="dashboard-content-grid min-h-0">
       <SeatsSubnav />
 
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Seats · Designer
@@ -561,7 +561,7 @@ export default function SeatDesignerPage() {
             Drag-and-drop seat designer
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {error && (
             <p className="max-w-sm truncate rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
               {error}
@@ -580,7 +580,7 @@ export default function SeatDesignerPage() {
           >
             <Send className="h-3.5 w-3.5" />
             {submitting
-              ? "Syncing…"
+              ? "Syncing..."
               : hasSubmitted
                 ? "Saved!"
                 : "Sync current layout"}
@@ -592,7 +592,7 @@ export default function SeatDesignerPage() {
             disabled={loadingExisting || !hallId}
             onClick={() => void loadExistingSeats()}
           >
-            {loadingExisting ? "Loading…" : "Load existing seats"}
+            {loadingExisting ? "Loading..." : "Load existing seats"}
           </Button>
           <Button
             type="button"
@@ -625,12 +625,12 @@ export default function SeatDesignerPage() {
       />
 
       {/* Canvas + Sidebar */}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/40">
-        <div className="flex h-full min-h-0 flex-col gap-3 overflow-auto lg:flex-row lg:items-start">
-          <div className="min-w-0 lg:flex-1">
+      <div className="cinema-surface overflow-hidden rounded-[28px] p-3 md:p-4">
+        <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+          <div className="min-w-0">
             <div
               ref={canvasWrapRef}
-              className="mx-auto h-[500px] w-full max-w-full lg:h-[560px] lg:w-[820px] lg:max-w-none lg:flex-none"
+              className="h-[420px] w-full overflow-hidden rounded-2xl xl:h-[560px]"
             >
               <SeatDesignerCanvas
                 seats={seats}
@@ -676,7 +676,7 @@ export default function SeatDesignerPage() {
             nextRowLabel={nextRowLabel}
             defaultTierId={tierId}
             viewportCenter={viewportCenter}
-            className="lg:flex-none"
+            className="min-w-0"
           />
         </div>
       </div>

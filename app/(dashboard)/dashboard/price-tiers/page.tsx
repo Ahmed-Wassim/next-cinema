@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -322,7 +323,7 @@ export default function PriceTiersPage() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <DashboardTableSkeleton rows={6} columns={6} />
       ) : (
         <>
           <Table>

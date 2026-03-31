@@ -307,7 +307,7 @@ export function SeatDesignerSidebar({
   return (
     <aside
       className={cn(
-        "flex w-full shrink-0 flex-col gap-3 lg:w-[320px] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto",
+        "flex w-full min-w-0 shrink-0 flex-col gap-3 xl:sticky xl:top-24 xl:max-h-[calc(100vh-8rem)] xl:overflow-y-auto",
         className,
       )}
     >

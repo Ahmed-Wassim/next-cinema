@@ -1,10 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, Sparkles } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  Film,
+  Sparkles,
+  Ticket,
+  TimerReset,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DashboardStatCard } from "@/components/dashboard-stat-card";
+import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
+import { PaginationBar } from "@/components/pagination-bar";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PaginationBar } from "@/components/pagination-bar";
 import {
   Table,
   TableBody,
@@ -32,8 +48,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { extractPaginated } from "@/lib/extract-paginated";
-import { getMovies } from "@/services/movieService";
 import { getHalls } from "@/services/hallService";
+import { getMovies } from "@/services/movieService";
 import { getPriceTiers } from "@/services/priceTierService";
 import {
   createShowtime,
@@ -53,19 +69,18 @@ const emptyMeta: PaginationMeta = {
   per_page: 15,
 };
 
-/** `datetime-local` value from ISO string (best-effort). */
 function toLocalInput(iso: string) {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso.slice(0, 16);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function fromLocalInput(local: string) {
   if (!local) return "";
-  const d = new Date(local);
-  return Number.isNaN(d.getTime()) ? local : d.toISOString();
+  const date = new Date(local);
+  return Number.isNaN(date.getTime()) ? local : date.toISOString();
 }
 
 function splitLocalDateTime(local: string) {
@@ -139,8 +154,8 @@ function ShowtimeDateTimeField({
               id={`${idPrefix}-date`}
               type="date"
               value={parts.date}
-              onChange={(e) =>
-                onChange(mergeLocalDateTime(e.target.value, parts.time))
+              onChange={(event) =>
+                onChange(mergeLocalDateTime(event.target.value, parts.time))
               }
               className="h-11 bg-white pl-9 dark:bg-zinc-950"
               required
@@ -158,8 +173,8 @@ function ShowtimeDateTimeField({
               type="time"
               step={300}
               value={parts.time}
-              onChange={(e) =>
-                onChange(mergeLocalDateTime(parts.date, e.target.value))
+              onChange={(event) =>
+                onChange(mergeLocalDateTime(parts.date, event.target.value))
               }
               className="h-11 bg-white pl-9 dark:bg-zinc-950"
               required
@@ -220,31 +235,31 @@ export default function ShowtimesPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const movieTitleById = useMemo(() => {
-    const m = new Map<number, string>();
-    movies.forEach((x) => m.set(x.id, x.title));
-    return m;
+    const map = new Map<number, string>();
+    movies.forEach((movie) => map.set(movie.id, movie.title));
+    return map;
   }, [movies]);
 
   const hallNameById = useMemo(() => {
-    const m = new Map<number, string>();
-    halls.forEach((x) => m.set(x.id, x.name));
-    return m;
+    const map = new Map<number, string>();
+    halls.forEach((hall) => map.set(hall.id, hall.name));
+    return map;
   }, [halls]);
 
   const tierNameById = useMemo(() => {
-    const m = new Map<number, string>();
-    tiers.forEach((x) => m.set(x.id, x.name));
-    return m;
+    const map = new Map<number, string>();
+    tiers.forEach((tier) => map.set(tier.id, tier.name));
+    return map;
   }, [tiers]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getShowtimes({ page, per_page: perPage });
-      const { data, meta: m } = extractPaginated<Showtime>(res);
+      const response = await getShowtimes({ page, per_page: perPage });
+      const { data, meta: nextMeta } = extractPaginated<Showtime>(response);
       setRows(data);
-      setMeta(m);
+      setMeta(nextMeta);
     } catch {
       setError("Failed to load showtimes.");
       setRows([]);
@@ -256,17 +271,17 @@ export default function ShowtimesPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [mRes, hRes, tRes] = await Promise.all([
+        const [movieResponse, hallResponse, tierResponse] = await Promise.all([
           getMovies({ per_page: 500 }),
           getHalls({ per_page: 500 }),
           getPriceTiers({ per_page: 500 }),
         ]);
-        const { data: m } = extractPaginated<Movie>(mRes);
-        const { data: h } = extractPaginated<Hall>(hRes);
-        const { data: t } = extractPaginated<PriceTier>(tRes);
-        setMovies(m);
-        setHalls(h);
-        setTiers(t);
+        const { data: movieData } = extractPaginated<Movie>(movieResponse);
+        const { data: hallData } = extractPaginated<Hall>(hallResponse);
+        const { data: tierData } = extractPaginated<PriceTier>(tierResponse);
+        setMovies(movieData);
+        setHalls(hallData);
+        setTiers(tierData);
       } catch {
         /* mapping only */
       }
@@ -275,11 +290,11 @@ export default function ShowtimesPage() {
 
   useEffect(() => {
     if (movies.length && halls.length && tiers.length) {
-      setCreateValues((v) => ({
-        movie_id: v.movie_id || movies[0]!.id,
-        hall_id: v.hall_id || halls[0]!.id,
-        price_tier_id: v.price_tier_id || tiers[0]!.id,
-        start_time_local: v.start_time_local,
+      setCreateValues((value) => ({
+        movie_id: value.movie_id || movies[0]!.id,
+        hall_id: value.hall_id || halls[0]!.id,
+        price_tier_id: value.price_tier_id || tiers[0]!.id,
+        start_time_local: value.start_time_local,
       }));
     }
   }, [movies, halls, tiers]);
@@ -288,8 +303,16 @@ export default function ShowtimesPage() {
     void load();
   }, [load]);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  const uniqueMovies = new Set(rows.map((row) => row.movie_id)).size;
+  const readyRows = rows.filter(
+    (row) =>
+      movieTitleById.has(row.movie_id) &&
+      hallNameById.has(row.hall_id) &&
+      tierNameById.has(row.price_tier_id),
+  ).length;
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
     if (
       !createValues.movie_id ||
       !createValues.hall_id ||
@@ -318,8 +341,8 @@ export default function ShowtimesPage() {
     }
   }
 
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleUpdate(event: React.FormEvent) {
+    event.preventDefault();
     if (!editing) return;
     try {
       await updateShowtime(editing.id, {
@@ -336,17 +359,6 @@ export default function ShowtimesPage() {
     }
   }
 
-  async function handleDelete(row: Showtime) {
-    if (!window.confirm("Delete this showtime?")) return;
-    try {
-      await deleteShowtime(row.id);
-      await load();
-    } catch {
-      setError("Could not delete showtime.");
-    }
-  }
-
-  void handleDelete;
   async function confirmDelete(row: Showtime) {
     setDeleteBusy(true);
     try {
@@ -361,13 +373,15 @@ export default function ShowtimesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-content-grid">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Showtimes</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Links movie, hall, tier, and start — labels resolved from cached
-            lists.
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
+            Scheduling
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Showtimes</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Linked movie, hall, tier, and start-time records with motion-enhanced create and edit flows.
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -384,10 +398,10 @@ export default function ShowtimesPage() {
                   <Label>Movie</Label>
                   <Select
                     value={String(createValues.movie_id || "")}
-                    onValueChange={(v) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        movie_id: Number(v),
+                    onValueChange={(value) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        movie_id: Number(value),
                       }))
                     }
                   >
@@ -395,9 +409,9 @@ export default function ShowtimesPage() {
                       <SelectValue placeholder="Movie" />
                     </SelectTrigger>
                     <SelectContent>
-                      {movies.map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.title}
+                      {movies.map((movie) => (
+                        <SelectItem key={movie.id} value={String(movie.id)}>
+                          {movie.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -407,10 +421,10 @@ export default function ShowtimesPage() {
                   <Label>Hall</Label>
                   <Select
                     value={String(createValues.hall_id || "")}
-                    onValueChange={(v) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        hall_id: Number(v),
+                    onValueChange={(value) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        hall_id: Number(value),
                       }))
                     }
                   >
@@ -418,9 +432,9 @@ export default function ShowtimesPage() {
                       <SelectValue placeholder="Hall" />
                     </SelectTrigger>
                     <SelectContent>
-                      {halls.map((h) => (
-                        <SelectItem key={h.id} value={String(h.id)}>
-                          {h.name}
+                      {halls.map((hall) => (
+                        <SelectItem key={hall.id} value={String(hall.id)}>
+                          {hall.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -430,10 +444,10 @@ export default function ShowtimesPage() {
                   <Label>Price tier</Label>
                   <Select
                     value={String(createValues.price_tier_id || "")}
-                    onValueChange={(v) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        price_tier_id: Number(v),
+                    onValueChange={(value) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        price_tier_id: Number(value),
                       }))
                     }
                   >
@@ -441,9 +455,9 @@ export default function ShowtimesPage() {
                       <SelectValue placeholder="Tier" />
                     </SelectTrigger>
                     <SelectContent>
-                      {tiers.map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.name}
+                      {tiers.map((tier) => (
+                        <SelectItem key={tier.id} value={String(tier.id)}>
+                          {tier.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -455,8 +469,8 @@ export default function ShowtimesPage() {
                     label="Start time"
                     value={createValues.start_time_local}
                     onChange={(next) =>
-                      setCreateValues((s) => ({
-                        ...s,
+                      setCreateValues((state) => ({
+                        ...state,
                         start_time_local: next,
                       }))
                     }
@@ -471,78 +485,116 @@ export default function ShowtimesPage() {
         </Dialog>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DashboardStatCard
+          label="Showtimes loaded"
+          value={rows.length}
+          hint="Visible schedule entries for the active dashboard page."
+          progress={100}
+          icon={Ticket}
+        />
+        <DashboardStatCard
+          label="Unique movies"
+          value={uniqueMovies}
+          hint="Helpful signal for programming mix without leaving the schedule page."
+          progress={rows.length ? (uniqueMovies / rows.length) * 100 : 0}
+          icon={Film}
+          tone="secondary"
+        />
+        <DashboardStatCard
+          label="Resolved labels"
+          value={`${readyRows}/${rows.length || 0}`}
+          hint="Checks how many rows have all their linked labels available from cached lists."
+          progress={rows.length ? (readyRows / rows.length) * 100 : 0}
+          icon={TimerReset}
+          tone="accent"
+        />
+      </div>
+
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <Card>
+          <CardContent className="p-5 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </CardContent>
+        </Card>
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <DashboardTableSkeleton rows={6} columns={5} />
       ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Movie</TableHead>
-                <TableHead>Hall</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Start</TableHead>
-                <TableHead className="w-[140px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">
-                    {movieTitleById.get(r.movie_id) ?? r.movie_id}
-                  </TableCell>
-                  <TableCell>
-                    {hallNameById.get(r.hall_id) ?? r.hall_id}
-                  </TableCell>
-                  <TableCell>
-                    {tierNameById.get(r.price_tier_id) ?? r.price_tier_id}
-                  </TableCell>
-                  <TableCell>{r.start_time}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => {
-                          setEditing(r);
-                          setEditingLocalTime(toLocalInput(r.start_time));
-                          setEditOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => setDeleting(r)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Showtime matrix</CardTitle>
+            <CardDescription>
+              Schedule rows retain the current structure while the surrounding surfaces, transitions, and spacing feel more modern.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Movie</TableHead>
+                  <TableHead>Hall</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead>Start</TableHead>
+                  <TableHead className="w-[140px]" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium">
+                      {movieTitleById.get(row.movie_id) ?? row.movie_id}
+                    </TableCell>
+                    <TableCell>
+                      {hallNameById.get(row.hall_id) ?? row.hall_id}
+                    </TableCell>
+                    <TableCell>
+                      {tierNameById.get(row.price_tier_id) ?? row.price_tier_id}
+                    </TableCell>
+                    <TableCell>{row.start_time}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => {
+                            setEditing(row);
+                            setEditingLocalTime(toLocalInput(row.start_time));
+                            setEditOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => setDeleting(row)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <PaginationBar
-            meta={meta}
-            perPage={perPage}
-            onPageChange={setPage}
-            onPerPageChange={(n) => {
-              setPerPage(n);
-              setPage(1);
-            }}
-          />
-        </>
+            <PaginationBar
+              meta={meta}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={(value) => {
+                setPerPage(value);
+                setPage(1);
+              }}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -557,9 +609,9 @@ export default function ShowtimesPage() {
                   <Label>Movie</Label>
                   <Select
                     value={String(editing.movie_id)}
-                    onValueChange={(v) =>
-                      setEditing((s) =>
-                        s ? { ...s, movie_id: Number(v) } : s,
+                    onValueChange={(value) =>
+                      setEditing((state) =>
+                        state ? { ...state, movie_id: Number(value) } : state,
                       )
                     }
                   >
@@ -567,9 +619,9 @@ export default function ShowtimesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {movies.map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.title}
+                      {movies.map((movie) => (
+                        <SelectItem key={movie.id} value={String(movie.id)}>
+                          {movie.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -579,9 +631,9 @@ export default function ShowtimesPage() {
                   <Label>Hall</Label>
                   <Select
                     value={String(editing.hall_id)}
-                    onValueChange={(v) =>
-                      setEditing((s) =>
-                        s ? { ...s, hall_id: Number(v) } : s,
+                    onValueChange={(value) =>
+                      setEditing((state) =>
+                        state ? { ...state, hall_id: Number(value) } : state,
                       )
                     }
                   >
@@ -589,9 +641,9 @@ export default function ShowtimesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {halls.map((h) => (
-                        <SelectItem key={h.id} value={String(h.id)}>
-                          {h.name}
+                      {halls.map((hall) => (
+                        <SelectItem key={hall.id} value={String(hall.id)}>
+                          {hall.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -601,9 +653,11 @@ export default function ShowtimesPage() {
                   <Label>Price tier</Label>
                   <Select
                     value={String(editing.price_tier_id)}
-                    onValueChange={(v) =>
-                      setEditing((s) =>
-                        s ? { ...s, price_tier_id: Number(v) } : s,
+                    onValueChange={(value) =>
+                      setEditing((state) =>
+                        state
+                          ? { ...state, price_tier_id: Number(value) }
+                          : state,
                       )
                     }
                   >
@@ -611,9 +665,9 @@ export default function ShowtimesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {tiers.map((t) => (
-                        <SelectItem key={t.id} value={String(t.id)}>
-                          {t.name}
+                      {tiers.map((tier) => (
+                        <SelectItem key={tier.id} value={String(tier.id)}>
+                          {tier.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -635,6 +689,7 @@ export default function ShowtimesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => {

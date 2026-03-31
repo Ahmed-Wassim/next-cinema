@@ -1,9 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Building2, Globe2, MapPinned } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DashboardStatCard } from "@/components/dashboard-stat-card";
+import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
+import { PaginationBar } from "@/components/pagination-bar";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PaginationBar } from "@/components/pagination-bar";
 import {
   Table,
   TableBody,
@@ -44,7 +54,7 @@ function BranchFormFields({
   onChange,
 }: {
   values: Omit<Branch, "id">;
-  onChange: (v: Omit<Branch, "id">) => void;
+  onChange: (value: Omit<Branch, "id">) => void;
 }) {
   return (
     <div className="grid gap-4">
@@ -53,7 +63,7 @@ function BranchFormFields({
         <Input
           id="b-name"
           value={values.name}
-          onChange={(e) => onChange({ ...values, name: e.target.value })}
+          onChange={(event) => onChange({ ...values, name: event.target.value })}
           required
         />
       </div>
@@ -62,7 +72,7 @@ function BranchFormFields({
         <Input
           id="b-city"
           value={values.city}
-          onChange={(e) => onChange({ ...values, city: e.target.value })}
+          onChange={(event) => onChange({ ...values, city: event.target.value })}
           required
         />
       </div>
@@ -71,7 +81,9 @@ function BranchFormFields({
         <Input
           id="b-address"
           value={values.address}
-          onChange={(e) => onChange({ ...values, address: e.target.value })}
+          onChange={(event) =>
+            onChange({ ...values, address: event.target.value })
+          }
           required
         />
       </div>
@@ -81,7 +93,9 @@ function BranchFormFields({
           id="b-tz"
           placeholder="e.g. Africa/Cairo"
           value={values.timezone}
-          onChange={(e) => onChange({ ...values, timezone: e.target.value })}
+          onChange={(event) =>
+            onChange({ ...values, timezone: event.target.value })
+          }
           required
         />
       </div>
@@ -126,10 +140,10 @@ export default function BranchesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getBranches({ page, per_page: perPage });
-      const { data, meta: m } = extractPaginated<Branch>(res);
+      const response = await getBranches({ page, per_page: perPage });
+      const { data, meta: nextMeta } = extractPaginated<Branch>(response);
       setRows(data);
-      setMeta(m);
+      setMeta(nextMeta);
     } catch {
       setError("Failed to load branches.");
       setRows([]);
@@ -142,8 +156,11 @@ export default function BranchesPage() {
     void load();
   }, [load]);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  const uniqueCities = new Set(rows.map((branch) => branch.city)).size;
+  const timezonesConfigured = rows.filter((branch) => branch.timezone.trim()).length;
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
     try {
       await createBranch(createValues);
       setCreateOpen(false);
@@ -159,8 +176,8 @@ export default function BranchesPage() {
     }
   }
 
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleUpdate(event: React.FormEvent) {
+    event.preventDefault();
     if (!editing) return;
     try {
       await updateBranch(editing.id, {
@@ -177,24 +194,16 @@ export default function BranchesPage() {
     }
   }
 
-  async function confirmDelete(row: Branch) {
-    if (!window.confirm(`Delete branch “${row.name}”?`)) return;
-    try {
-      await deleteBranch(row.id);
-      await load();
-    } catch {
-      setError("Could not delete branch.");
-    }
-  }
-  void confirmDelete;
-
   return (
-    <div className="space-y-6">
+    <div className="dashboard-content-grid">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Branches</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Locations: name, city, address, timezone.
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
+            Network
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Branches</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Location management with clearer editing, richer spacing, and faster scanning.
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -207,10 +216,7 @@ export default function BranchesPage() {
                 <DialogTitle>New branch</DialogTitle>
               </DialogHeader>
               <div className="py-4">
-                <BranchFormFields
-                  values={createValues}
-                  onChange={setCreateValues}
-                />
+                <BranchFormFields values={createValues} onChange={setCreateValues} />
               </div>
               <DialogFooter>
                 <Button type="submit">Create</Button>
@@ -220,71 +226,109 @@ export default function BranchesPage() {
         </Dialog>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DashboardStatCard
+          label="Branch count"
+          value={rows.length}
+          hint="Current rows in view with pagination-ready interactions."
+          progress={100}
+          icon={Building2}
+        />
+        <DashboardStatCard
+          label="Cities covered"
+          value={uniqueCities}
+          hint="Track how broadly your branch network is distributed."
+          progress={rows.length ? (uniqueCities / rows.length) * 100 : 0}
+          icon={MapPinned}
+          tone="secondary"
+        />
+        <DashboardStatCard
+          label="Timezones set"
+          value={timezonesConfigured}
+          hint="Useful for validating scheduling readiness before showtime setup."
+          progress={rows.length ? (timezonesConfigured / rows.length) * 100 : 0}
+          icon={Globe2}
+          tone="accent"
+        />
+      </div>
+
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <Card>
+          <CardContent className="p-5 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </CardContent>
+        </Card>
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <DashboardTableSkeleton rows={6} columns={5} />
       ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead>Timezone</TableHead>
-                <TableHead className="w-[140px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">{b.name}</TableCell>
-                  <TableCell>{b.city}</TableCell>
-                  <TableCell>{b.address}</TableCell>
-                  <TableCell>{b.timezone}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => {
-                          setEditing(b);
-                          setEditOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => setDeleting(b)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Branch directory</CardTitle>
+            <CardDescription>
+              Edit and delete actions now sit in a cleaner responsive container that behaves well on smaller screens.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Timezone</TableHead>
+                  <TableHead className="w-[140px]" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.map((branch) => (
+                  <TableRow key={branch.id}>
+                    <TableCell className="font-medium">{branch.name}</TableCell>
+                    <TableCell>{branch.city}</TableCell>
+                    <TableCell>{branch.address}</TableCell>
+                    <TableCell>{branch.timezone}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => {
+                            setEditing(branch);
+                            setEditOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => setDeleting(branch)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <PaginationBar
-            meta={meta}
-            perPage={perPage}
-            onPageChange={setPage}
-            onPerPageChange={(n) => {
-              setPerPage(n);
-              setPage(1);
-            }}
-          />
-        </>
+            <PaginationBar
+              meta={meta}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={(value) => {
+                setPerPage(value);
+                setPage(1);
+              }}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -302,7 +346,7 @@ export default function BranchesPage() {
                     address: editing.address,
                     timezone: editing.timezone,
                   }}
-                  onChange={(v) => setEditing({ ...editing, ...v })}
+                  onChange={(value) => setEditing({ ...editing, ...value })}
                 />
               </div>
               <DialogFooter>
@@ -312,6 +356,7 @@ export default function BranchesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => {
@@ -319,9 +364,7 @@ export default function BranchesPage() {
         }}
         title="Delete branch"
         description={
-          deleting
-            ? `This will permanently remove "${deleting.name}".`
-            : ""
+          deleting ? `This will permanently remove "${deleting.name}".` : ""
         }
         onConfirm={() => (deleting ? executeDelete(deleting) : undefined)}
         loading={deleteBusy}

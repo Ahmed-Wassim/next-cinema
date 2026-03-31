@@ -1,9 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Armchair, Building2, LayoutTemplate } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DashboardStatCard } from "@/components/dashboard-stat-card";
+import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
+import { PaginationBar } from "@/components/pagination-bar";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PaginationBar } from "@/components/pagination-bar";
 import {
   Table,
   TableBody,
@@ -71,19 +81,19 @@ export default function HallsPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const branchNameById = useMemo(() => {
-    const m = new Map<number, string>();
-    branches.forEach((b) => m.set(b.id, b.name));
-    return m;
+    const map = new Map<number, string>();
+    branches.forEach((branch) => map.set(branch.id, branch.name));
+    return map;
   }, [branches]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getHalls({ page, per_page: perPage });
-      const { data, meta: m } = extractPaginated<Hall>(res);
+      const response = await getHalls({ page, per_page: perPage });
+      const { data, meta: nextMeta } = extractPaginated<Hall>(response);
       setRows(data);
-      setMeta(m);
+      setMeta(nextMeta);
     } catch {
       setError("Failed to load halls.");
       setRows([]);
@@ -95,8 +105,8 @@ export default function HallsPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await getBranches({ per_page: 500 });
-        const { data } = extractPaginated<Branch>(res);
+        const response = await getBranches({ per_page: 500 });
+        const { data } = extractPaginated<Branch>(response);
         setBranches(data);
       } catch {
         /* labels only */
@@ -106,8 +116,8 @@ export default function HallsPage() {
 
   useEffect(() => {
     if (branches.length > 0) {
-      setCreateValues((v) =>
-        v.branch_id === 0 ? { ...v, branch_id: branches[0]!.id } : v,
+      setCreateValues((value) =>
+        value.branch_id === 0 ? { ...value, branch_id: branches[0]!.id } : value,
       );
     }
   }, [branches]);
@@ -116,8 +126,14 @@ export default function HallsPage() {
     void load();
   }, [load]);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  const totalSeats = rows.reduce(
+    (sum, hall) => sum + Number(hall.total_seats ?? 0),
+    0,
+  );
+  const configuredLayouts = rows.filter((hall) => hall.layout_type?.trim()).length;
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
     if (!createValues.branch_id) {
       setError("Pick a branch.");
       return;
@@ -138,8 +154,8 @@ export default function HallsPage() {
     }
   }
 
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleUpdate(event: React.FormEvent) {
+    event.preventDefault();
     if (!editing) return;
     try {
       await updateHall(editing.id, {
@@ -157,17 +173,6 @@ export default function HallsPage() {
     }
   }
 
-  async function handleDelete(row: Hall) {
-    if (!window.confirm(`Delete hall “${row.name}”?`)) return;
-    try {
-      await deleteHall(row.id);
-      await load();
-    } catch {
-      setError("Could not delete hall.");
-    }
-  }
-
-  void handleDelete;
   async function confirmDelete(row: Hall) {
     setDeleteBusy(true);
     try {
@@ -182,12 +187,15 @@ export default function HallsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-content-grid">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Halls</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Screens linked to a branch.
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
+            Venue setup
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Halls</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Screen inventory connected to branches with better readability and editing flow.
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -204,10 +212,10 @@ export default function HallsPage() {
                   <Label>Branch</Label>
                   <Select
                     value={String(createValues.branch_id || "")}
-                    onValueChange={(v) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        branch_id: Number(v),
+                    onValueChange={(value) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        branch_id: Number(value),
                       }))
                     }
                   >
@@ -215,9 +223,9 @@ export default function HallsPage() {
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={String(b.id)}>
-                          {b.name}
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={String(branch.id)}>
+                          {branch.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -228,8 +236,8 @@ export default function HallsPage() {
                   <Input
                     id="h-name"
                     value={createValues.name}
-                    onChange={(e) =>
-                      setCreateValues((s) => ({ ...s, name: e.target.value }))
+                    onChange={(event) =>
+                      setCreateValues((state) => ({ ...state, name: event.target.value }))
                     }
                     required
                   />
@@ -239,8 +247,8 @@ export default function HallsPage() {
                   <Input
                     id="h-type"
                     value={createValues.type}
-                    onChange={(e) =>
-                      setCreateValues((s) => ({ ...s, type: e.target.value }))
+                    onChange={(event) =>
+                      setCreateValues((state) => ({ ...state, type: event.target.value }))
                     }
                     required
                   />
@@ -253,10 +261,11 @@ export default function HallsPage() {
                     min={0}
                     step={1}
                     value={createValues.total_seats ?? ""}
-                    onChange={(e) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        total_seats: e.target.value === "" ? 0 : Number(e.target.value),
+                    onChange={(event) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        total_seats:
+                          event.target.value === "" ? 0 : Number(event.target.value),
                       }))
                     }
                   />
@@ -267,10 +276,10 @@ export default function HallsPage() {
                     id="h-layout-type"
                     placeholder="e.g. stadium"
                     value={createValues.layout_type ?? ""}
-                    onChange={(e) =>
-                      setCreateValues((s) => ({
-                        ...s,
-                        layout_type: e.target.value,
+                    onChange={(event) =>
+                      setCreateValues((state) => ({
+                        ...state,
+                        layout_type: event.target.value,
                       }))
                     }
                   />
@@ -284,83 +293,121 @@ export default function HallsPage() {
         </Dialog>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <DashboardStatCard
+          label="Halls in view"
+          value={rows.length}
+          hint="Responsive cards keep the main metrics visible above the data table."
+          progress={100}
+          icon={Building2}
+        />
+        <DashboardStatCard
+          label="Seat capacity"
+          value={totalSeats}
+          hint="Combined seat totals for the currently visible collection."
+          progress={Math.min(totalSeats / 10, 100)}
+          icon={Armchair}
+          tone="secondary"
+        />
+        <DashboardStatCard
+          label="Layout coverage"
+          value={`${configuredLayouts}/${rows.length || 0}`}
+          hint="See which halls already carry layout metadata for downstream seat tooling."
+          progress={rows.length ? (configuredLayouts / rows.length) * 100 : 0}
+          icon={LayoutTemplate}
+          tone="accent"
+        />
+      </div>
+
       {error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <Card>
+          <CardContent className="p-5 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </CardContent>
+        </Card>
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <DashboardTableSkeleton rows={6} columns={6} />
       ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Branch</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="w-24 text-right">Seats</TableHead>
-                <TableHead className="w-28">Layout</TableHead>
-                <TableHead className="w-[140px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((h) => (
-                <TableRow key={h.id}>
-                  <TableCell>
-                    {branchNameById.get(h.branch_id) ?? h.branch_id}
-                  </TableCell>
-                  <TableCell className="font-medium">{h.name}</TableCell>
-                  <TableCell>{h.type}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {h.total_seats ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-zinc-700 dark:text-zinc-300">
-                    {h.layout_type ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => {
-                          setEditing({
-                            ...h,
-                            total_seats: h.total_seats ?? 0,
-                            layout_type: h.layout_type ?? "",
-                          });
-                          setEditOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="min-w-[72px]"
-                        onClick={() => setDeleting(h)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Hall directory</CardTitle>
+            <CardDescription>
+              The table keeps the existing fields intact while improving scan rhythm, spacing, and hover feedback.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="w-24 text-right">Seats</TableHead>
+                  <TableHead className="w-28">Layout</TableHead>
+                  <TableHead className="w-[140px]" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.map((hall) => (
+                  <TableRow key={hall.id}>
+                    <TableCell>
+                      {branchNameById.get(hall.branch_id) ?? hall.branch_id}
+                    </TableCell>
+                    <TableCell className="font-medium">{hall.name}</TableCell>
+                    <TableCell>{hall.type}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {hall.total_seats ?? "-"}
+                    </TableCell>
+                    <TableCell className="text-zinc-700 dark:text-zinc-300">
+                      {hall.layout_type ?? "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => {
+                            setEditing({
+                              ...hall,
+                              total_seats: hall.total_seats ?? 0,
+                              layout_type: hall.layout_type ?? "",
+                            });
+                            setEditOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="min-w-[72px]"
+                          onClick={() => setDeleting(hall)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
-          <PaginationBar
-            meta={meta}
-            perPage={perPage}
-            onPageChange={setPage}
-            onPerPageChange={(n) => {
-              setPerPage(n);
-              setPage(1);
-            }}
-          />
-        </>
+            <PaginationBar
+              meta={meta}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={(value) => {
+                setPerPage(value);
+                setPage(1);
+              }}
+            />
+          </CardContent>
+        </Card>
       )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -375,9 +422,9 @@ export default function HallsPage() {
                   <Label>Branch</Label>
                   <Select
                     value={String(editing.branch_id)}
-                    onValueChange={(v) =>
-                      setEditing((s) =>
-                        s ? { ...s, branch_id: Number(v) } : s,
+                    onValueChange={(value) =>
+                      setEditing((state) =>
+                        state ? { ...state, branch_id: Number(value) } : state,
                       )
                     }
                   >
@@ -385,9 +432,9 @@ export default function HallsPage() {
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={String(b.id)}>
-                          {b.name}
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={String(branch.id)}>
+                          {branch.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -397,9 +444,9 @@ export default function HallsPage() {
                   <Label>Name</Label>
                   <Input
                     value={editing.name}
-                    onChange={(e) =>
-                      setEditing((s) =>
-                        s ? { ...s, name: e.target.value } : s,
+                    onChange={(event) =>
+                      setEditing((state) =>
+                        state ? { ...state, name: event.target.value } : state,
                       )
                     }
                     required
@@ -409,9 +456,9 @@ export default function HallsPage() {
                   <Label>Type</Label>
                   <Input
                     value={editing.type}
-                    onChange={(e) =>
-                      setEditing((s) =>
-                        s ? { ...s, type: e.target.value } : s,
+                    onChange={(event) =>
+                      setEditing((state) =>
+                        state ? { ...state, type: event.target.value } : state,
                       )
                     }
                     required
@@ -424,17 +471,17 @@ export default function HallsPage() {
                     min={0}
                     step={1}
                     value={editing.total_seats ?? ""}
-                    onChange={(e) =>
-                      setEditing((s) =>
-                        s
+                    onChange={(event) =>
+                      setEditing((state) =>
+                        state
                           ? {
-                              ...s,
+                              ...state,
                               total_seats:
-                                e.target.value === ""
+                                event.target.value === ""
                                   ? 0
-                                  : Number(e.target.value),
+                                  : Number(event.target.value),
                             }
-                          : s,
+                          : state,
                       )
                     }
                   />
@@ -444,9 +491,9 @@ export default function HallsPage() {
                   <Input
                     placeholder="e.g. stadium"
                     value={editing.layout_type ?? ""}
-                    onChange={(e) =>
-                      setEditing((s) =>
-                        s ? { ...s, layout_type: e.target.value } : s,
+                    onChange={(event) =>
+                      setEditing((state) =>
+                        state ? { ...state, layout_type: event.target.value } : state,
                       )
                     }
                   />
@@ -459,6 +506,7 @@ export default function HallsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => {
@@ -466,9 +514,7 @@ export default function HallsPage() {
         }}
         title="Delete hall"
         description={
-          deleting
-            ? `This will permanently remove "${deleting.name}".`
-            : ""
+          deleting ? `This will permanently remove "${deleting.name}".` : ""
         }
         onConfirm={() => (deleting ? confirmDelete(deleting) : undefined)}
         loading={deleteBusy}

@@ -5,6 +5,7 @@ import { LayoutGrid, List } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -417,7 +418,13 @@ export default function SeatsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        viewMode === "table" ? (
+          <DashboardTableSkeleton rows={6} columns={5} />
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/40">
+            <div className="h-[420px] animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" />
+          </div>
+        )
       ) : viewMode === "map" ? (
         filterHallId === 0 ? (
           <div className="py-20 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50">

@@ -492,7 +492,6 @@ export function SeatDesignerCanvas({
           const newSeat: LayoutSeat = {
             layoutKey: crypto.randomUUID(),
             hall_id: hallId,
-            section_id: sectionId,
             price_tier_id: defaultTierId,
             row: nextRowLabel,
             number: String(nextSeatNumber),
@@ -625,7 +624,7 @@ export function SeatDesignerCanvas({
   return (
     <div
       className={cn(
-        "relative h-full min-h-[500px] w-full overflow-hidden rounded-xl border border-zinc-200 bg-[#f6f7f9] dark:border-zinc-700 dark:bg-[#111214]",
+        "relative h-full min-h-[420px] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#10131a] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
         className,
       )}
     >
@@ -651,7 +650,7 @@ export function SeatDesignerCanvas({
             <path
               d={`M ${GRID_STEP} 0 L 0 0 0 ${GRID_STEP}`}
               fill="none"
-              stroke="rgba(0,0,0,0.04)"
+              stroke="rgba(148,163,184,0.08)"
               strokeWidth={0.2}
             />
           </pattern>
@@ -670,7 +669,7 @@ export function SeatDesignerCanvas({
             <path
               d={`M ${GRID_STEP * 4} 0 L 0 0 0 ${GRID_STEP * 4}`}
               fill="none"
-              stroke="rgba(0,0,0,0.08)"
+              stroke="rgba(148,163,184,0.14)"
               strokeWidth={0.35}
             />
           </pattern>
@@ -715,7 +714,7 @@ export function SeatDesignerCanvas({
             width={designerBounds.width}
             height={designerBounds.height}
             fill="rgba(59,130,246,0.03)"
-            stroke="rgba(59,130,246,0.35)"
+            stroke="rgba(96,165,250,0.22)"
             strokeWidth={0.6}
             strokeDasharray="3 2"
             rx={2}
@@ -904,14 +903,14 @@ export function SeatDesignerCanvas({
       <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2">
         <div className="rounded-lg bg-black/50 px-2.5 py-1 text-[11px] font-medium capitalize text-white/80 backdrop-blur-md">
           {activeTool === "tier-paint"
-            ? "🎨 Tier Paint"
+            ? "Paint Tier"
             : activeTool === "place"
-              ? "➕ Place"
+              ? "Place"
               : activeTool === "row"
-                ? "📐 Add Row"
+                ? "Add Row"
                 : activeTool === "pan"
-                  ? "🖐️ Pan"
-                  : "🔍 Select"}
+                  ? "Pan"
+                  : "Select"}
         </div>
       </div>
 

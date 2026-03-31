@@ -28,7 +28,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-screen flex flex-col overflow-x-hidden">
+        <div aria-hidden="true" className="app-backdrop" />
         {children}
         <ThemeSwitcher />
       </body>

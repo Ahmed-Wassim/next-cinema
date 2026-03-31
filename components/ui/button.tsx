@@ -5,19 +5,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-0.5 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:pointer-events-none disabled:opacity-50 hover:-translate-y-0.5 active:scale-[0.98] dark:focus-visible:ring-offset-zinc-950 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-br from-amber-500 to-amber-400 text-zinc-950 hover:from-amber-400 hover:to-amber-300",
-        destructive: "bg-gradient-to-br from-rose-600 to-rose-500 text-white hover:from-rose-500 hover:to-rose-400",
+          "bg-gradient-to-r from-[color:var(--primary)] to-[color:var(--secondary)] text-white hover:shadow-[0_16px_36px_color-mix(in_srgb,var(--primary)_28%,transparent)]",
+        destructive:
+          "bg-gradient-to-r from-rose-600 to-rose-500 text-white hover:shadow-[0_16px_36px_rgba(244,63,94,0.24)]",
         outline:
-          "border border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800",
+          "border border-zinc-200 bg-white/80 text-zinc-900 shadow-none hover:border-[color:var(--primary)]/35 hover:bg-white dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-100 dark:hover:bg-zinc-900",
         secondary:
-          "bg-zinc-800 text-zinc-100 hover:bg-zinc-700",
-        ghost: "bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-white",
-        link: "text-amber-300 underline-offset-4 hover:text-amber-100 hover:underline",
+          "bg-zinc-900 text-zinc-100 hover:bg-zinc-800 dark:bg-white/10 dark:hover:bg-white/15",
+        ghost:
+          "bg-transparent text-zinc-600 shadow-none hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white",
+        link:
+          "text-[color:var(--primary)] shadow-none underline-offset-4 hover:text-[color:var(--secondary)] hover:underline",
       },
       size: {
         default: "h-11 px-5",
