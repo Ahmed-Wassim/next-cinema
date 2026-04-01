@@ -14,11 +14,13 @@ import { ChevronDown, Search } from "lucide-react";
 interface CustomerFormProps {
   onSubmit: (customer: BookingCustomer) => void;
   isLoading?: boolean;
+  submitLabel?: string;
 }
 
 export function CustomerForm({
   onSubmit,
   isLoading = false,
+  submitLabel,
 }: CustomerFormProps) {
   const [form, setForm] = useState<BookingCustomer>({
     name: "",
@@ -180,7 +182,6 @@ export function CustomerForm({
       {field("Full Name", "name", "text", "Ahmed Wassim")}
       {field("Email Address", "email", "email", "ahmed@example.com")}
 
-      {/* Phone with country code */}
       <div className="space-y-1.5">
         <label className="block text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
           Phone Number
@@ -315,9 +316,9 @@ export function CustomerForm({
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-bold text-black shadow-lg shadow-[var(--accent)]/25 transition-all hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full rounded-xl bg-[var(--accent)] py-3.5 text-sm font-bold text-black shadow-lg shadow-[var(--accent)]/25 transition-all hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Processing…" : "Confirm & Pay →"}
+        {isLoading ? "Processing..." : submitLabel ?? "Confirm & Pay ->"}
       </button>
     </form>
   );

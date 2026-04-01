@@ -21,3 +21,9 @@ export const updateShowtime = (
 
 export const deleteShowtime = (id: number) =>
   api.delete(`/showtimes/${id}`);
+
+export const setShowtimeOffer = (id: number, offer_percentage: number) =>
+  api.patch(`/showtimes/${id}/offer`, { offer_percentage });
+
+export const clearShowtimeOffer = (id: number) =>
+  api.delete(`/showtimes/${id}/offer`);

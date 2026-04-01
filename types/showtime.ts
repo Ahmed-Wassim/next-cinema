@@ -4,4 +4,5 @@ export interface Showtime {
   hall_id: number;
   start_time: string;
   price_tier_id: number;
+  offer_percentage?: number | string | null;
 }

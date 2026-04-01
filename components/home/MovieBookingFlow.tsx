@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ShowtimePicker } from "@/components/home/ShowtimePicker";
+import { ArrowRight, AlertCircle, BadgePercent, Loader2 } from "lucide-react";
+
 import { SeatMap } from "@/components/home/SeatMap";
-import { getShowtimeSeats, reserveSeats } from "@/services/homeService";
-import type { GroupedShowtimes, ShowtimeSeat } from "@/types/home";
-import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ShowtimePicker } from "@/components/home/ShowtimePicker";
 import { Stepper } from "@/components/ui/stepper";
 import { ToastContainer, ToastItem } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
+import { getShowtimeSeats, reserveSeats } from "@/services/homeService";
+import type { GroupedShowtimes, ShowtimeSeat } from "@/types/home";
 
 interface MovieBookingFlowProps {
   movieId?: number | string;
@@ -25,6 +26,19 @@ const sectionTransition = {
   mass: 0.9,
 } as const;
 
+function formatMoney(value: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency || "USD"} ${value.toFixed(2)}`;
+  }
+}
+
 export function MovieBookingFlow({
   movieId,
   showtimes,
@@ -36,8 +50,9 @@ export function MovieBookingFlow({
   );
   const [selectedSeats, setSelectedSeats] = useState<ShowtimeSeat[]>([]);
   const [seats, setSeats] = useState<ShowtimeSeat[]>([]);
+  const [offerPercentage, setOfferPercentage] = useState(0);
   const [isLoadingSeats, setIsLoadingSeats] = useState(false);
-  const [isReserving, setIsReserving] = useState(false);
+  const [isReservingSeats, setIsReservingSeats] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [clearSelectionSignal, setClearSelectionSignal] = useState(0);
@@ -56,68 +71,99 @@ export function MovieBookingFlow({
     );
   }, [showtimes]);
 
-  useEffect(() => {
-    const lastId = Number(
-      window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0",
-    );
-    if (lastId > 0 && availableShowtimeIds.has(lastId)) {
-      setSelectedShowtimeId(lastId);
-      setActiveStep(1);
-    } else {
-      window.localStorage.removeItem("cinema.lastSelectedShowtime");
-    }
-  }, [availableShowtimeIds]);
+  const resolvedShowtimeId =
+    selectedShowtimeId && availableShowtimeIds.has(selectedShowtimeId)
+      ? selectedShowtimeId
+      : null;
 
   useEffect(() => {
-    if (!selectedShowtimeId) return;
-    if (availableShowtimeIds.has(selectedShowtimeId)) return;
+    let cancelled = false;
 
-    setSelectedShowtimeId(null);
-    setSelectedSeats([]);
-    setSeats([]);
-    setActiveStep(0);
-    window.localStorage.removeItem("cinema.lastSelectedShowtime");
+    queueMicrotask(() => {
+      if (cancelled || selectedShowtimeId !== null) return;
+
+      const lastId = Number(
+        window.localStorage.getItem("cinema.lastSelectedShowtime") ?? "0",
+      );
+
+      if (lastId > 0 && availableShowtimeIds.has(lastId)) {
+        setSelectedShowtimeId(lastId);
+      } else {
+        window.localStorage.removeItem("cinema.lastSelectedShowtime");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [availableShowtimeIds, selectedShowtimeId]);
 
   useEffect(() => {
-    if (!selectedShowtimeId) {
-      setSeats([]);
-      setSelectedSeats([]);
+    if (!resolvedShowtimeId) {
+      window.localStorage.removeItem("cinema.lastSelectedShowtime");
       return;
     }
 
-    setIsLoadingSeats(true);
-    setError(null);
-    getShowtimeSeats(selectedShowtimeId)
-      .then((res) => {
-        setSeats(res.data?.data ?? []);
-      })
-      .catch(() => {
-        setError("Could not load seat map for selected showtime.");
-        setToasts((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            title: "Seat map error",
-            message: "Timeout or server error while loading seats.",
-            type: "error",
-          },
-        ]);
-      })
-      .finally(() => setIsLoadingSeats(false));
-  }, [selectedShowtimeId]);
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+
+      setIsLoadingSeats(true);
+      setError(null);
+      getShowtimeSeats(resolvedShowtimeId)
+        .then((res) => {
+          if (cancelled) return;
+          setSeats(res.data?.data ?? []);
+          setOfferPercentage(Number(res.data?.offer_percentage ?? 0));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setOfferPercentage(0);
+          setError("Could not load seat map for selected showtime.");
+          setToasts((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              title: "Seat map error",
+              message: "Timeout or server error while loading seats.",
+              type: "error",
+            },
+          ]);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setIsLoadingSeats(false);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedShowtimeId]);
+
+  const handleSelectionChange = useCallback((next: ShowtimeSeat[]) => {
+    setSelectedSeats(next);
+  }, []);
 
   const selectedTotal = useMemo(
     () => selectedSeats.reduce((sum, seat) => sum + getSeatPrice(seat), 0),
     [selectedSeats],
   );
-
   const selectedCurrency = getSeatCurrency(selectedSeats[0]);
+  const offerDiscount = useMemo(
+    () => (selectedTotal * offerPercentage) / 100,
+    [offerPercentage, selectedTotal],
+  );
+  const totalAfterOffer = useMemo(
+    () => Math.max(selectedTotal - offerDiscount, 0),
+    [offerDiscount, selectedTotal],
+  );
 
   const selectedStep = steps[activeStep];
 
   const proceedToNext = () => {
-    if (activeStep === 0 && !selectedShowtimeId) return;
+    if (activeStep === 0 && !resolvedShowtimeId) return;
     if (activeStep === 1 && selectedSeats.length === 0) return;
     setActiveStep((prev) => Math.min(prev + 1, steps.length - 1));
   };
@@ -126,32 +172,25 @@ export function MovieBookingFlow({
     setActiveStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleReserve = async () => {
-    if (!selectedShowtimeId || selectedSeats.length === 0) return;
-    setIsReserving(true);
+  const handleProceedToCheckout = async () => {
+    if (!resolvedShowtimeId || selectedSeats.length === 0) return;
+
+    setIsReservingSeats(true);
     setError(null);
 
     try {
       await reserveSeats({
-        showtime_id: selectedShowtimeId,
+        showtime_id: resolvedShowtimeId,
         seat_ids: selectedSeats.map((seat) => seat.id),
       });
-      setToasts((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          title: "Reserved",
-          message: "Seats reserved successfully. Redirecting to checkout.",
-          type: "success",
-        },
-      ]);
+
       router.push(
-        `/checkout?showtimeId=${selectedShowtimeId}&seats=${selectedSeats.map((s) => s.id).join(",")}`,
+        `/checkout?showtimeId=${resolvedShowtimeId}&seats=${selectedSeats.map((seat) => seat.id).join(",")}&offerPercentage=${offerPercentage.toFixed(2)}`,
       );
-    } catch (err) {
+    } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Could not reserve seats. Please try again.";
+          ?.message ?? "Could not reserve seats. Please try again.";
       setError(message);
       setToasts((prev) => [
         ...prev,
@@ -163,7 +202,7 @@ export function MovieBookingFlow({
         },
       ]);
     } finally {
-      setIsReserving(false);
+      setIsReservingSeats(false);
     }
   };
 
@@ -220,9 +259,12 @@ export function MovieBookingFlow({
                 </div>
                 <ShowtimePicker
                   showtimes={showtimes}
-                  selectedShowtimeId={selectedShowtimeId}
+                  selectedShowtimeId={resolvedShowtimeId}
                   onSelectShowtime={(id) => {
                     setSelectedShowtimeId(id);
+                    setActiveStep(1);
+                    setSeats([]);
+                    setOfferPercentage(0);
                     window.localStorage.setItem(
                       "cinema.lastSelectedShowtime",
                       String(id),
@@ -259,6 +301,21 @@ export function MovieBookingFlow({
                   </p>
                 </div>
 
+                {offerPercentage > 0 ? (
+                  <div className="flex items-start gap-3 rounded-[24px] border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                    <BadgePercent className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <div>
+                      <p className="font-semibold">
+                        Showtime offer: {offerPercentage.toFixed(0)}% off
+                      </p>
+                      <p className="mt-1 text-emerald-200/80">
+                        This showtime already carries a discount, so the totals
+                        below reflect the reduced price.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
                 {isLoadingSeats ? (
                   <motion.div
                     className="space-y-4"
@@ -273,12 +330,10 @@ export function MovieBookingFlow({
                         </div>
                         <div className="h-7 w-24 animate-pulse rounded-full bg-white/6" />
                       </div>
-
                       <div className="relative overflow-hidden rounded-[24px] border border-white/8 bg-[var(--bg-primary)]/60 p-6">
                         <div className="mb-8 flex justify-center">
                           <div className="h-4 w-40 animate-pulse rounded-full bg-[var(--accent)]/16" />
                         </div>
-
                         <div className="space-y-3">
                           {Array.from({ length: 6 }).map((_, rowIndex) => (
                             <div
@@ -295,28 +350,6 @@ export function MovieBookingFlow({
                             </div>
                           ))}
                         </div>
-
-                        <div className="mt-8 flex items-center justify-end gap-2">
-                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
-                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
-                          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/6" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-5 px-1">
-                      {Array.from({ length: 3 }).map((_, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-pulse rounded-md bg-white/8" />
-                          <div className="h-3 w-20 animate-pulse rounded-full bg-white/6" />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-[22px] border border-white/8 bg-white/5 px-5 py-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="h-4 w-36 animate-pulse rounded-full bg-white/8" />
-                        <div className="h-4 w-20 animate-pulse rounded-full bg-[var(--accent)]/14" />
                       </div>
                     </div>
                   </motion.div>
@@ -334,7 +367,7 @@ export function MovieBookingFlow({
                 ) : (
                   <SeatMap
                     seats={seats}
-                    onSelectionChange={setSelectedSeats}
+                    onSelectionChange={handleSelectionChange}
                     maxSelectable={6}
                     clearSelectionSignal={clearSelectionSignal}
                   />
@@ -353,12 +386,13 @@ export function MovieBookingFlow({
               >
                 <div className="rounded-[24px] border border-white/8 bg-black/10 p-4">
                   <p className="text-sm font-semibold text-[var(--accent)]">
-                    Step 3: Confirm & Pay
+                    Step 3: Confirm & Reserve
                   </p>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    Review your seats and complete payment with the secure flow.
+                    Review your seats and reserve them before moving to checkout.
                   </p>
                 </div>
+
                 <div className="rounded-[24px] border border-white/8 bg-black/10 p-4 space-y-3">
                   <p className="text-sm text-[var(--text-secondary)]">
                     Selected seats: {selectedSeats.length}
@@ -376,25 +410,41 @@ export function MovieBookingFlow({
                           {seat.row_label ?? seat.row ?? "?"}
                           {seat.col_label ?? seat.number ?? ""}
                         </span>
-                        <span>
-                          {getSeatCurrency(seat)}{" "}
-                          {getSeatPrice(seat).toFixed(2)}
-                        </span>
+                        <span>{formatMoney(getSeatPrice(seat), selectedCurrency)}</span>
                       </motion.li>
                     ))}
                   </ul>
+                  <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-sm font-medium text-[var(--text-secondary)]">
+                    <span>Subtotal</span>
+                    <span>{formatMoney(selectedTotal, selectedCurrency)}</span>
+                  </div>
+                  {offerPercentage > 0 ? (
+                    <div className="flex items-center justify-between text-sm font-medium text-emerald-300">
+                      <span>Showtime discount ({offerPercentage.toFixed(0)}%)</span>
+                      <span>-{formatMoney(offerDiscount, selectedCurrency)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-lg font-bold text-[var(--text-primary)]">
                     <span>Total</span>
                     <motion.span
-                      key={`${selectedCurrency}-${selectedTotal}`}
+                      key={`${selectedCurrency}-${totalAfterOffer}`}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.22 }}
                     >
-                      {selectedCurrency} {selectedTotal.toFixed(2)}
+                      {formatMoney(totalAfterOffer, selectedCurrency)}
                     </motion.span>
                   </div>
                 </div>
+
+                {error ? (
+                  <div className="rounded-[24px] border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      {error}
+                    </div>
+                  </div>
+                ) : null}
               </motion.div>
             )}
           </AnimatePresence>
@@ -415,7 +465,7 @@ export function MovieBookingFlow({
           <div className="mt-4 space-y-2 text-sm text-[var(--text-secondary)]">
             <div className="flex justify-between">
               <span>Showtime</span>
-              <span>{selectedShowtimeId ?? "-"}</span>
+              <span>{resolvedShowtimeId ?? "-"}</span>
             </div>
             <div className="flex justify-between">
               <span>Seats selected</span>
@@ -423,29 +473,39 @@ export function MovieBookingFlow({
             </div>
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>
-                {selectedCurrency} {selectedTotal.toFixed(2)}
-              </span>
+              <span>{formatMoney(selectedTotal, selectedCurrency)}</span>
             </div>
+            {offerPercentage > 0 ? (
+              <>
+                <div className="flex justify-between text-emerald-300">
+                  <span>Showtime offer</span>
+                  <span>-{formatMoney(offerDiscount, selectedCurrency)}</span>
+                </div>
+                <div className="flex justify-between font-medium text-[var(--text-primary)]">
+                  <span>Total</span>
+                  <span>{formatMoney(totalAfterOffer, selectedCurrency)}</span>
+                </div>
+              </>
+            ) : null}
           </div>
           <div className="mt-6 flex flex-col gap-3">
             <button
               onClick={proceedToNext}
               disabled={
-                (activeStep === 0 && !selectedShowtimeId) ||
+                (activeStep === 0 && !resolvedShowtimeId) ||
                 (activeStep === 1 && selectedSeats.length === 0) ||
                 activeStep === 2
               }
               className={cn(
                 "rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-300",
-                (activeStep === 0 && selectedShowtimeId) ||
+                (activeStep === 0 && resolvedShowtimeId) ||
                   (activeStep === 1 && selectedSeats.length > 0)
                   ? "cinema-ring bg-[var(--accent)] text-black hover:-translate-y-0.5 hover:bg-[var(--accent-hover)]"
-                  : "bg-white/8 text-[var(--text-secondary)] cursor-not-allowed",
+                  : "cursor-not-allowed bg-white/8 text-[var(--text-secondary)]",
               )}
             >
               {activeStep === 2
-                ? "Ready for Payment"
+                ? "Review complete"
                 : `Proceed to ${steps[activeStep + 1]}`}
               <ArrowRight className="ml-2 inline-block h-4 w-4" />
             </button>
@@ -453,26 +513,27 @@ export function MovieBookingFlow({
             <button
               onClick={activeStep > 0 ? goBack : undefined}
               className="rounded-2xl border border-white/8 px-4 py-3 text-sm font-medium text-[var(--text-secondary)] transition-all duration-300 hover:bg-white/6 enabled:hover:-translate-y-0.5"
-              disabled={activeStep === 0}
+              disabled={activeStep === 0 || isReservingSeats}
             >
               Back
             </button>
 
             {activeStep === 2 && (
               <motion.button
-                onClick={handleReserve}
-                disabled={isReserving || selectedSeats.length === 0}
+                onClick={() => void handleProceedToCheckout()}
+                disabled={selectedSeats.length === 0 || isReservingSeats}
                 className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-black transition-all duration-300 hover:-translate-y-0.5 hover:bg-emerald-400 disabled:opacity-50"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
               >
-                {isReserving ? (
+                {isReservingSeats ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Reserving...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Reserving seats...
                   </span>
                 ) : (
-                  "Confirm Booking"
+                  "Proceed to Checkout"
                 )}
               </motion.button>
             )}

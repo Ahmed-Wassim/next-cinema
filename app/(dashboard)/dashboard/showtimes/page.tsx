@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Clock3,
   Film,
+  Percent,
   Sparkles,
   Ticket,
   TimerReset,
@@ -14,6 +15,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { DashboardTableSkeleton } from "@/components/dashboard-table-skeleton";
 import { PaginationBar } from "@/components/pagination-bar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,9 +54,11 @@ import { getHalls } from "@/services/hallService";
 import { getMovies } from "@/services/movieService";
 import { getPriceTiers } from "@/services/priceTierService";
 import {
+  clearShowtimeOffer,
   createShowtime,
   deleteShowtime,
   getShowtimes,
+  setShowtimeOffer,
   updateShowtime,
 } from "@/services/showtimeService";
 import type { Hall } from "@/types/hall";
@@ -220,7 +224,6 @@ export default function ShowtimesPage() {
   const [perPage, setPerPage] = useState(15);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [createOpen, setCreateOpen] = useState(false);
   const [createValues, setCreateValues] = useState({
     movie_id: 0,
@@ -233,6 +236,10 @@ export default function ShowtimesPage() {
   const [editingLocalTime, setEditingLocalTime] = useState("");
   const [deleting, setDeleting] = useState<Showtime | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [offerTarget, setOfferTarget] = useState<Showtime | null>(null);
+  const [offerValue, setOfferValue] = useState("");
+  const [offerBusy, setOfferBusy] = useState(false);
 
   const movieTitleById = useMemo(() => {
     const map = new Map<number, string>();
@@ -310,6 +317,9 @@ export default function ShowtimesPage() {
       hallNameById.has(row.hall_id) &&
       tierNameById.has(row.price_tier_id),
   ).length;
+  const activeOffers = rows.filter(
+    (row) => Number(row.offer_percentage ?? 0) > 0,
+  ).length;
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
@@ -372,6 +382,34 @@ export default function ShowtimesPage() {
     }
   }
 
+  async function handleOfferSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!offerTarget) return;
+
+    setOfferBusy(true);
+    try {
+      await setShowtimeOffer(offerTarget.id, Number(offerValue));
+      setOfferOpen(false);
+      setOfferTarget(null);
+      setOfferValue("");
+      await load();
+    } catch {
+      setError("Could not update showtime offer.");
+    } finally {
+      setOfferBusy(false);
+    }
+  }
+
+  async function handleClearOffer(row: Showtime) {
+    setError(null);
+    try {
+      await clearShowtimeOffer(row.id);
+      await load();
+    } catch {
+      setError("Could not clear showtime offer.");
+    }
+  }
+
   return (
     <div className="dashboard-content-grid">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -379,9 +417,12 @@ export default function ShowtimesPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">
             Scheduling
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Showtimes</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+            Showtimes
+          </h1>
           <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Linked movie, hall, tier, and start-time records with motion-enhanced create and edit flows.
+            Linked movie, hall, tier, start-time, and offer records for each
+            screening.
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -463,19 +504,17 @@ export default function ShowtimesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <ShowtimeDateTimeField
-                    idPrefix="st-create"
-                    label="Start time"
-                    value={createValues.start_time_local}
-                    onChange={(next) =>
-                      setCreateValues((state) => ({
-                        ...state,
-                        start_time_local: next,
-                      }))
-                    }
-                  />
-                </div>
+                <ShowtimeDateTimeField
+                  idPrefix="st-create"
+                  label="Start time"
+                  value={createValues.start_time_local}
+                  onChange={(next) =>
+                    setCreateValues((state) => ({
+                      ...state,
+                      start_time_local: next,
+                    }))
+                  }
+                />
               </div>
               <DialogFooter>
                 <Button type="submit">Create</Button>
@@ -485,7 +524,7 @@ export default function ShowtimesPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DashboardStatCard
           label="Showtimes loaded"
           value={rows.length}
@@ -509,6 +548,13 @@ export default function ShowtimesPage() {
           icon={TimerReset}
           tone="accent"
         />
+        <DashboardStatCard
+          label="Live offers"
+          value={activeOffers}
+          hint="Showtimes currently carrying a public offer percentage."
+          progress={rows.length ? (activeOffers / rows.length) * 100 : 0}
+          icon={Percent}
+        />
       </div>
 
       {error ? (
@@ -520,13 +566,14 @@ export default function ShowtimesPage() {
       ) : null}
 
       {loading ? (
-        <DashboardTableSkeleton rows={6} columns={5} />
+        <DashboardTableSkeleton rows={6} columns={6} />
       ) : (
         <Card>
           <CardHeader>
             <CardTitle>Showtime matrix</CardTitle>
             <CardDescription>
-              Schedule rows retain the current structure while the surrounding surfaces, transitions, and spacing feel more modern.
+              Schedule rows now include per-showtime offers so promotions can be
+              managed without leaving the timetable.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -537,7 +584,8 @@ export default function ShowtimesPage() {
                   <TableHead>Hall</TableHead>
                   <TableHead>Tier</TableHead>
                   <TableHead>Start</TableHead>
-                  <TableHead className="w-[140px]" />
+                  <TableHead>Offer</TableHead>
+                  <TableHead className="w-[220px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -553,6 +601,15 @@ export default function ShowtimesPage() {
                       {tierNameById.get(row.price_tier_id) ?? row.price_tier_id}
                     </TableCell>
                     <TableCell>{row.start_time}</TableCell>
+                    <TableCell>
+                      {Number(row.offer_percentage ?? 0) > 0 ? (
+                        <Badge variant="success">
+                          {Number(row.offer_percentage).toFixed(0)}% off
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">No offer</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
                         <Button
@@ -577,6 +634,32 @@ export default function ShowtimesPage() {
                         >
                           Delete
                         </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setOfferTarget(row);
+                            setOfferValue(
+                              row.offer_percentage
+                                ? String(row.offer_percentage)
+                                : "",
+                            );
+                            setOfferOpen(true);
+                          }}
+                        >
+                          Set offer
+                        </Button>
+                        {Number(row.offer_percentage ?? 0) > 0 ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleClearOffer(row)}
+                          >
+                            Clear offer
+                          </Button>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -673,17 +756,54 @@ export default function ShowtimesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <ShowtimeDateTimeField
+                  idPrefix="st-edit"
+                  label="Start time"
+                  value={editingLocalTime}
+                  onChange={setEditingLocalTime}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Save</Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={offerOpen} onOpenChange={setOfferOpen}>
+        <DialogContent>
+          {offerTarget ? (
+            <form onSubmit={handleOfferSubmit}>
+              <DialogHeader>
+                <DialogTitle>Set showtime offer</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/60">
+                  {movieTitleById.get(offerTarget.movie_id) ?? "Selected showtime"}{" "}
+                  on {formatLocalPreview(toLocalInput(offerTarget.start_time))}
+                </div>
                 <div className="space-y-2">
-                  <ShowtimeDateTimeField
-                    idPrefix="st-edit"
-                    label="Start time"
-                    value={editingLocalTime}
-                    onChange={setEditingLocalTime}
+                  <Label htmlFor="showtime-offer-percentage">
+                    Offer percentage
+                  </Label>
+                  <Input
+                    id="showtime-offer-percentage"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={offerValue}
+                    onChange={(event) => setOfferValue(event.target.value)}
+                    placeholder="10"
+                    required
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Save</Button>
+                <Button type="submit" disabled={offerBusy}>
+                  {offerBusy ? "Saving..." : "Save offer"}
+                </Button>
               </DialogFooter>
             </form>
           ) : null}

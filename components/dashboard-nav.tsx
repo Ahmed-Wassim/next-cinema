@@ -7,6 +7,7 @@ import {
   Armchair,
   Building2,
   Clapperboard,
+  Percent,
   MapPinned,
   ReceiptText,
   Tags,
@@ -22,6 +23,7 @@ const links = [
   { href: "/dashboard/seats", label: "Seats", icon: Armchair },
   { href: "/dashboard/movies", label: "Movies", icon: Clapperboard },
   { href: "/dashboard/showtimes", label: "Showtimes", icon: Ticket },
+  { href: "/dashboard/discounts", label: "Discounts", icon: Percent },
   { href: "/dashboard/payments", label: "Payments", icon: ReceiptText },
 ];
 

@@ -1,4 +1,8 @@
 import type { PriceTier } from "@/types/price-tier";
+import type {
+  CouponValidationPayload,
+  CouponValidationResponse,
+} from "@/types/discount";
 
 /* ── Movie browsing ─────────────────────────────────────────── */
 
@@ -42,6 +46,7 @@ export type SeatStatus = "available" | "booked" | "reserved" | "inactive";
 
 export interface ShowtimeSeat {
   id: number;
+  seat_id?: number;
   label?: string | null;
   row_label?: string | null;
   col_label?: string | null;
@@ -58,6 +63,11 @@ export interface ShowtimeSeat {
   currency?: string | null;
   price_tier?: PriceTier | null;
   [key: string]: unknown;
+}
+
+export interface ShowtimeSeatsResponse {
+  data: ShowtimeSeat[];
+  offer_percentage?: number | string | null;
 }
 
 /* ── Reservation ─────────────────────────────────────────────── */
@@ -84,11 +94,13 @@ export interface CreateBookingPayload {
   showtime_id: number;
   seat_ids: number[];
   customer: BookingCustomer;
+  coupon_code?: string;
 }
 
 export interface Booking {
   id: number;
   status: string;
+  total_price?: number | string;
   total_amount?: number | string;
   currency?: string;
   customer?: BookingCustomer;
@@ -101,8 +113,6 @@ export interface Booking {
 
 export interface InitiateCheckoutPayload {
   booking_id: number;
-  customer_name: string;
-  customer_email: string;
 }
 
 export interface CheckoutResponse {
@@ -133,3 +143,5 @@ export interface BookingConfirmation extends Booking {
     qr_code?: string;
   }>;
 }
+
+export type { CouponValidationPayload, CouponValidationResponse };
