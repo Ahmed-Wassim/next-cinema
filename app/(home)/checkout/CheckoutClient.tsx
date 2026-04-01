@@ -56,7 +56,9 @@ function normalizeCouponResult(
   fallbackCode: string,
 ) {
   const payload =
-    response.data && typeof response.data === "object" ? response.data : response;
+    response.data && typeof response.data === "object"
+      ? response.data
+      : response;
 
   return {
     code: String(payload.code || fallbackCode).toUpperCase(),
@@ -71,7 +73,9 @@ function normalizeCouponResult(
       payload.coupon_discount ?? payload.discount_amount,
     ),
     totalPrice: asNumber(
-      payload.total_price ?? payload.final_total ?? payload.total_after_discount,
+      payload.total_price ??
+        payload.final_total ??
+        payload.total_after_discount,
     ),
   } satisfies AppliedCoupon;
 }
@@ -88,7 +92,9 @@ export function CheckoutClient({
   const [step, setStep] = useState<string>("");
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
-  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(
+    null,
+  );
 
   const seatKey = useMemo(() => seatIds.join(","), [seatIds]);
 
@@ -170,8 +176,9 @@ export function CheckoutClient({
             <div>
               <h3 className="font-semibold">Showtime offer applied</h3>
               <p className="mt-1 text-emerald-200/85">
-                This booking already includes a {initialOfferPercentage.toFixed(0)}%
-                showtime discount before any coupon code is applied.
+                This booking already includes a{" "}
+                {initialOfferPercentage.toFixed(0)}% showtime discount before
+                any coupon code is applied.
               </p>
             </div>
           </div>
@@ -255,7 +262,8 @@ export function CheckoutClient({
                           Offer discount
                         </p>
                         <p className="mt-1 font-semibold">
-                          -{formatAmount(
+                          -
+                          {formatAmount(
                             appliedCoupon.offerDiscount,
                             appliedCoupon.currency,
                           ) ?? "0"}
@@ -266,7 +274,8 @@ export function CheckoutClient({
                           Coupon discount
                         </p>
                         <p className="mt-1 font-semibold">
-                          -{formatAmount(
+                          -
+                          {formatAmount(
                             appliedCoupon.couponDiscount,
                             appliedCoupon.currency,
                           ) ?? "0"}
