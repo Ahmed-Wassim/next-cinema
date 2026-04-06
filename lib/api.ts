@@ -1,8 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_API_URL ?? "http://foo.cinema.test/api/dashboard",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://foo.cinema.test/api/dashboard",
 });
 
 api.interceptors.request.use((config) => {
@@ -14,3 +13,16 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        document.cookie = "token=; Path=/; Max-Age=0; SameSite=Lax";
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);

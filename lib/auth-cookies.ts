@@ -1,3 +1,5 @@
+import { getCookieDomain } from "./tenant";
+
 const TOKEN_KEY = "token";
 const MAX_AGE_DAYS = 7;
 
@@ -5,10 +7,22 @@ const MAX_AGE_DAYS = 7;
 export function setAuthCookie(token: string) {
   if (typeof document === "undefined") return;
   const maxAge = MAX_AGE_DAYS * 24 * 60 * 60;
-  document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  const domain = getCookieDomain(window.location.hostname);
+  
+  let cookieStr = `${TOKEN_KEY}=${encodeURIComponent(token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+  if (domain !== "localhost") {
+    cookieStr += `; Domain=${domain}`;
+  }
+  document.cookie = cookieStr;
 }
 
 export function clearAuthCookie() {
   if (typeof document === "undefined") return;
-  document.cookie = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+  const domain = getCookieDomain(window.location.hostname);
+  
+  let cookieStr = `${TOKEN_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+  if (domain !== "localhost") {
+    cookieStr += `; Domain=${domain}`;
+  }
+  document.cookie = cookieStr;
 }

@@ -14,3 +14,4 @@ export const login = (data: Credentials) => api.post("/auth/login", data);
 export const register = (data: RegisterPayload) =>
   api.post("/auth/register", data);
 export const logout = () => api.post("/auth/logout");
+export const getMe = () => api.get("/me");

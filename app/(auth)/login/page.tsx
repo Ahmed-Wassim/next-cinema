@@ -10,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { setAuthCookie } from "@/lib/auth-cookies";
 import { login } from "@/services/authService";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function LoginPage() {
   const router = useRouter();
+  const setAuthData = useAuthStore((state) => state.setAuthData);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +27,17 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await login({ email, password });
-      const token =
-        (data as { token?: string; data?: { token?: string } })?.token ??
-        (data as { data?: { token?: string } })?.data?.token;
+      
+      const payload = data as any;
+      const token = payload?.token || payload?.data?.token;
+
       if (!token) {
         setError("Invalid response: no token.");
         return;
       }
+
+      setAuthData(payload.user || {}, payload.abilities || []);
+
       localStorage.setItem("token", token);
       setAuthCookie(token);
       router.push("/dashboard/movies");
